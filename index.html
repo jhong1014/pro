@@ -349,6 +349,8 @@ color:#475569; background:#fff; border:1px solid var(--border); box-shadow:var(-
 .ev-score th small.sc-allowed{font-size:11px; white-space:normal; max-width:90px}
 .ev-score tr.partial td{background:#fffbeb}
 .ev-legend{margin:8px 0 12px; font-size:13px}
+.ev-notice{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; margin-bottom:10px;
+background:#fffbeb; border:1px solid #fde68a; border-radius:10px; font-size:13px; color:#92400e}
 .ev-legend summary{cursor:pointer; font-weight:700; color:#334155}
 .ev-legend table{margin-top:8px}
 .code{font-family:ui-monospace, Menlo, monospace; letter-spacing:1px; font-weight:700}
@@ -1968,7 +1970,7 @@ try {
 must(await sb.from('eval_tasks').update({ published: !t.published, updated_at: new Date().toISOString() }).eq('id', id));
 t.published = !t.published;
 toast(t.published ? '학생에게 공개했습니다.' : '비공개로 바꿨습니다.', 'ok');
-renderTaskView();
+if (state.view === 'escore') renderScoreView(); else renderTaskView();
 } catch (e) { toast(e.message, 'err'); }
 }
 async function deleteTask(id, scoredCount){
@@ -2005,7 +2007,7 @@ const target = document.getElementById('cpSchool').value;
 try {
 must(await sb.rpc('copy_eval_task', { p_task_id: state.copyTask, p_school: target }));
 closeCopyModal();
-toast(target === ev.school ? '복사본을 만들었습니다.' : target + '(으)로 복사했습니다.', 'ok');
+toast((target === ev.school ? '복사본을 만들었습니다.' : target + '(으)로 복사했습니다.') + ' 복사본은 학생 비공개 상태입니다.', 'ok');
 if (target === ev.school) loadEval();
 } catch (e) { toast(e.message, 'err'); }
 }
@@ -2172,7 +2174,7 @@ function renderScoreView(){
 const tSel = document.getElementById('scTask'), cSel = document.getElementById('scClass');
 const prevT = state.scoreTask || Number(tSel.value), prevC = cSel.value;
 state.scoreTask = null;
-tSel.innerHTML = ev.tasks.length ? ev.tasks.map(function(t){ return opt(t.id, t.title); }).join('')
+tSel.innerHTML = ev.tasks.length ? ev.tasks.map(function(t){ return opt(t.id, t.title + (t.published ? '' : ' (비공개)')); }).join('')
 : '<option value="">(평가 기준 없음)</option>';
 if (evTask(prevT)) tSel.value = prevT;
 const classes = evClasses();
@@ -2207,8 +2209,11 @@ if (!task){ box.innerHTML = '<div class="empty"><div class="big">평가 기준�
 if (!cls){ box.innerHTML = '<div class="empty"><div class="big">학생 명단이 없습니다</div><div>[학생 명단] 탭에서 먼저 등록하세요.</div></div>'; return; }
 const students = evStudentsOf(cls);
 const map = scoreMap();
+// 비공개 과제는 학생 조회 화면에 나오지 않으므로 눈에 띄게 알림
+const notice = task.published ? '' : '<div class="ev-notice"><span>이 과제는 <b>학생 비공개</b> 상태라 학생 조회 화면에 나오지 않습니다.</span>' +
+'<button class="btn sm" onclick="togglePublish('+task.id+')">학생에게 공개</button></div>';
 
-let legend = '<details class="ev-legend"><summary>채점 기준 보기</summary>';
+let legend = notice + '<details class="ev-legend"><summary>채점 기준 보기</summary>';
 task.items.forEach(function(it){
 legend += '<table><thead><tr><th>'+esc(it.name)+' ('+evFmt(it.max_score)+'점)</th><th class="num" style="width:70px">점수</th></tr></thead><tbody>' +
 it.levels.map(function(l){ return '<tr><td>'+esc(l.description)+'</td><td class="num">'+evFmt(l.score)+'</td></tr>'; }).join('') +

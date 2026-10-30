@@ -71,6 +71,12 @@ background:#fff; border:1px dashed var(--border-strong); border-radius:12px;
 .total .v small{font-size:15px; color:var(--muted); font-weight:600}
 .badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e}
 .item{margin-top:14px}
+.toc{display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 12px; margin-top:6px;
+border:1px solid var(--border); border-radius:10px; color:var(--fg); text-decoration:none; font-size:14px}
+.toc b{color:var(--primary); white-space:nowrap}
+.toc small{color:var(--muted); font-weight:600}
+html{scroll-behavior:smooth}
+.card[id^="task"]{scroll-margin-top:12px}
 .item-head{display:flex; justify-content:space-between; gap:8px; font-weight:700; font-size:14px; margin-bottom:6px}
 .item-head .mine{color:var(--primary); white-space:nowrap}
 .lv{
@@ -172,9 +178,17 @@ if (!d.tasks.length){
 box.innerHTML = '<div class="empty">아직 공개된 수행평가 결과가 없습니다.</div>';
 return;
 }
-box.innerHTML = d.tasks.map(function(t){
+// 과제가 여럿이면 맨 위에 목록을 두고, 누르면 해당 과제로 이동 (아래로 계속 스크롤해도 모두 보임)
+let toc = '';
+if (d.tasks.length > 1){
+toc = '<div class="card"><h2 style="margin-bottom:8px">수행평가 ' + d.tasks.length + '개</h2>' +
+d.tasks.map(function(t, i){
+return '<a class="toc" href="#task' + i + '"><span>' + esc(t.title) + '</span><b>' + num(t.total) + '<small> / ' + num(t.max_total) + '</small></b></a>';
+}).join('') + '</div>';
+}
+box.innerHTML = toc + d.tasks.map(function(t, idx){
 const pending = t.items.some(function(i){ return i.my_score == null; });
-let html = '<div class="card"><div class="task-head"><div>' +
+let html = '<div class="card" id="task' + idx + '"><div class="task-head"><div>' +
 '<h2>' + esc(t.title) + '</h2>' +
 (t.target ? '<div class="muted" style="font-size:13px">' + esc(t.target) + '</div>' : '') +
 (pending ? '<span class="badge">일부 항목 채점 중</span>' : '') +
