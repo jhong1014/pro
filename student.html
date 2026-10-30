@@ -132,7 +132,7 @@ const res = await sb.rpc('eval_school_list');
 if (res.error){ showErr('학교 목록을 불러오지 못했습니다.'); return; }
 const list = texts(res.data);
 document.getElementById('school').innerHTML = '<option value="">선택</option>' + options(list);
-if (list.length === 1){ document.getElementById('school').value = list[0]; loadClasses(); }
+if (list.length === 1){ document.getElementById('school').value = list[0]; await loadClasses(); }
 }
 async function loadClasses(){
 const school = document.getElementById('school').value;
@@ -200,7 +200,22 @@ document.getElementById('who').textContent = '학교 · 반 · 번호와 선생�
 document.getElementById('num').value = '';
 }
 
-loadSchools();
+/* QR 주소(?s=학교&c=반&n=번호)로 들어오면 미리 채우고 확인코드만 입력 */
+async function init(){
+await loadSchools();
+const q = new URLSearchParams(location.search);
+const school = q.get('s'), cls = q.get('c'), no = q.get('n');
+const sSel = document.getElementById('school');
+if (school && Array.prototype.some.call(sSel.options, function(o){ return o.value === school; })){
+sSel.value = school;
+await loadClasses();
+const cSel = document.getElementById('cls');
+if (cls && Array.prototype.some.call(cSel.options, function(o){ return o.value === cls; })) cSel.value = cls;
+if (no) document.getElementById('num').value = no;
+document.getElementById('code').focus();
+}
+}
+init();
 </script>
 </body>
 </html>
