@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>수행평가 결과 조회</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+--card:#ffffff;
+--fg:#0f172a; --muted:#64748b;
+--border:#e2e8f0; --border-strong:#cbd5e1;
+--primary:#4f46e5;
+--danger:#e11d48;
+--ok:#059669;
+--shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.06);
+--radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+color:var(--fg);
+background:
+radial-gradient(1200px 500px at -10% -10%, #dbeafe 0%, transparent 60%),
+radial-gradient(1000px 500px at 110% 0%, #ede9fe 0%, transparent 55%),
+#f8fafc;
+min-height:100vh;
+padding:16px;
+}
+.wrap{max-width:760px; margin:0 auto}
+.hero{
+background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+color:#fff; border-radius:18px; padding:20px 22px; box-shadow:var(--shadow);
+display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+margin-bottom:14px;
+}
+.hero h1{margin:0; font-size:22px; letter-spacing:-.3px}
+.hero .sub{opacity:.9; font-size:13px; margin-top:2px}
+.hero button{
+background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.25);
+padding:7px 13px; border-radius:999px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit;
+}
+.card{
+background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+padding:16px; box-shadow:var(--shadow); margin-bottom:14px;
+}
+.card h2{margin:0 0 4px; font-size:17px}
+.row{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px}
+label.field{display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted)}
+input, select{
+border:1px solid var(--border); background:#fff; border-radius:10px;
+padding:9px 10px; font-size:15px; color:var(--fg); outline:none; font-family:inherit; width:100%;
+}
+input:focus, select:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+.btn{
+border:none; cursor:pointer; padding:10px 16px; border-radius:10px; font-weight:600; font-size:15px;
+background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; box-shadow:0 4px 10px rgba(79,70,229,.22);
+font-family:inherit; width:100%; margin-top:12px;
+}
+.btn:disabled{opacity:.6; cursor:default}
+.err{color:var(--danger); font-size:13px; min-height:18px; margin-top:8px}
+.muted{color:var(--muted)}
+.empty{
+padding:28px 14px; text-align:center; color:var(--muted);
+background:#fff; border:1px dashed var(--border-strong); border-radius:12px;
+}
+.task-head{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap}
+.total{text-align:right}
+.total .v{font-size:28px; font-weight:800; color:var(--primary)}
+.total .v small{font-size:15px; color:var(--muted); font-weight:600}
+.badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e}
+.item{margin-top:14px}
+.item-head{display:flex; justify-content:space-between; gap:8px; font-weight:700; font-size:14px; margin-bottom:6px}
+.item-head .mine{color:var(--primary); white-space:nowrap}
+.lv{
+display:grid; grid-template-columns:22px 1fr 48px; gap:6px; align-items:start;
+padding:8px 10px; border:1px solid var(--border); border-radius:10px; margin-bottom:4px;
+font-size:14px; line-height:1.45; color:#475569; background:#fff;
+}
+.lv .sc{text-align:right; font-variant-numeric:tabular-nums}
+.lv.sel{background:#eef2ff; border-color:#a5b4fc; color:var(--fg); font-weight:700}
+.lv.sel .mark{color:var(--primary)}
+details{margin-top:12px; font-size:13px; color:#334155}
+details summary{cursor:pointer; font-weight:700}
+details .txt{white-space:pre-wrap; margin-top:6px; line-height:1.55}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hero">
+<div>
+<h1>수행평가 결과 조회</h1>
+<div class="sub" id="who">학교 · 반 · 번호와 선생님께 받은 확인코드를 입력하세요</div>
+</div>
+<button id="outBtn" style="display:none" onclick="logout()">다른 학생 조회</button>
+</div>
+
+<form class="card" id="loginCard" onsubmit="lookup(event)">
+<div class="row">
+<label class="field">학교<select id="school" onchange="loadClasses()" required></select></label>
+<label class="field">반<select id="cls" required></select></label>
+<label class="field">번호<input type="number" id="num" min="1" inputmode="numeric" required/></label>
+<label class="field">확인코드<input type="password" id="code" inputmode="numeric" autocomplete="off" required/></label>
+</div>
+<button class="btn" type="submit" id="goBtn">조회</button>
+<div class="err" id="err"></div>
+</form>
+
+<div id="result"></div>
+</div>
+<script>
+/* 공개용(publishable) 키 - 학생은 student_eval_view() 함수로 본인 결과만 받습니다. */
+const SUPABASE_URL = 'https://pfasdccrftfedsvwwalb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XuCCXqn_RAYYbEG9Ua33XA_-opIYotq';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+
+function esc(s){
+return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+});
+}
+function num(v){ return String(Math.round(Number(v) * 100) / 100); }
+// setof text 함수 결과 → 문자열 배열
+function texts(data){
+return (data || []).map(function(x){ return (x && typeof x === 'object') ? Object.values(x)[0] : x; });
+}
+function options(list){
+return list.map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('');
+}
+function showErr(msg){ document.getElementById('err').textContent = msg || ''; }
+
+async function loadSchools(){
+const res = await sb.rpc('eval_school_list');
+if (res.error){ showErr('학교 목록을 불러오지 못했습니다.'); return; }
+const list = texts(res.data);
+document.getElementById('school').innerHTML = '<option value="">선택</option>' + options(list);
+if (list.length === 1){ document.getElementById('school').value = list[0]; loadClasses(); }
+}
+async function loadClasses(){
+const school = document.getElementById('school').value;
+const sel = document.getElementById('cls');
+sel.innerHTML = '';
+if (!school) return;
+const res = await sb.rpc('eval_class_list', { p_school: school });
+if (res.error){ showErr('반 목록을 불러오지 못했습니다.'); return; }
+sel.innerHTML = '<option value="">선택</option>' + options(texts(res.data));
+}
+
+async function lookup(ev){
+ev.preventDefault();
+showErr('');
+const btn = document.getElementById('goBtn');
+btn.disabled = true;
+const res = await sb.rpc('student_eval_view', {
+p_school: document.getElementById('school').value,
+p_class: document.getElementById('cls').value,
+p_number: Number(document.getElementById('num').value),
+p_code: document.getElementById('code').value.trim()
+});
+btn.disabled = false;
+if (res.error){ showErr('조회 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.'); return; }
+if (res.data.error){ showErr(res.data.error); return; }
+document.getElementById('code').value = '';
+render(res.data);
+}
+
+function render(d){
+const s = d.student;
+document.getElementById('loginCard').style.display = 'none';
+document.getElementById('outBtn').style.display = '';
+document.getElementById('who').textContent = s.school + ' ' + s.class_name + ' ' + s.number + '번 ' + s.name;
+const box = document.getElementById('result');
+if (!d.tasks.length){
+box.innerHTML = '<div class="empty">아직 공개된 수행평가 결과가 없습니다.</div>';
+return;
+}
+box.innerHTML = d.tasks.map(function(t){
+const pending = t.items.some(function(i){ return i.my_score == null; });
+let html = '<div class="card"><div class="task-head"><div>' +
+'<h2>' + esc(t.title) + '</h2>' +
+(t.target ? '<div class="muted" style="font-size:13px">' + esc(t.target) + '</div>' : '') +
+(pending ? '<span class="badge">일부 항목 채점 중</span>' : '') +
+'</div><div class="total"><div class="muted" style="font-size:12px">총점</div>' +
+'<div class="v">' + num(t.total) + '<small> / ' + num(t.max_total) + '점</small></div></div></div>';
+t.items.forEach(function(it){
+html += '<div class="item"><div class="item-head"><span>' + esc(it.name) + ' (' + num(it.max_score) + '점)</span>' +
+'<span class="mine">' + (it.my_score == null ? '채점 전' : '내 점수 ' + num(it.my_score)) + '</span></div>' +
+it.levels.map(function(l){
+return '<div class="lv' + (l.selected ? ' sel' : '') + '"><span class="mark">' + (l.selected ? '✔' : '') + '</span>' +
+'<span>' + esc(l.description) + '</span><span class="sc">' + num(l.score) + '</span></div>';
+}).join('') + '</div>';
+});
+if (t.standards) html += '<details><summary>성취기준</summary><div class="txt">' + esc(t.standards) + '</div></details>';
+if (t.notes) html += '<details><summary>유의사항</summary><div class="txt">' + esc(t.notes) + '</div></details>';
+return html + '</div>';
+}).join('');
+}
+
+function logout(){
+document.getElementById('result').innerHTML = '';
+document.getElementById('loginCard').style.display = '';
+document.getElementById('outBtn').style.display = 'none';
+document.getElementById('who').textContent = '학교 · 반 · 번호와 선생님께 받은 확인코드를 입력하세요';
+document.getElementById('num').value = '';
+}
+
+loadSchools();
+</script>
+</body>
+</html>
