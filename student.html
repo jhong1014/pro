@@ -81,9 +81,6 @@ font-size:14px; line-height:1.45; color:#475569; background:#fff;
 .lv .sc{text-align:right; font-variant-numeric:tabular-nums}
 .lv.sel{background:#eef2ff; border-color:#a5b4fc; color:var(--fg); font-weight:700}
 .lv.sel .mark{color:var(--primary)}
-details{margin-top:12px; font-size:13px; color:#334155}
-details summary{cursor:pointer; font-weight:700}
-details .txt{white-space:pre-wrap; margin-top:6px; line-height:1.55}
 </style>
 </head>
 <body>
@@ -191,8 +188,6 @@ return '<div class="lv' + (l.selected ? ' sel' : '') + '"><span class="mark">' +
 '<span>' + esc(l.description) + '</span><span class="sc">' + num(l.score) + '</span></div>';
 }).join('') + '</div>';
 });
-if (t.standards) html += '<details><summary>성취기준</summary><div class="txt">' + esc(t.standards) + '</div></details>';
-if (t.notes) html += '<details><summary>유의사항</summary><div class="txt">' + esc(t.notes) + '</div></details>';
 return html + '</div>';
 }).join('');
 }

@@ -329,18 +329,23 @@ color:#475569; background:#fff; border:1px solid var(--border); box-shadow:var(-
 .et-item{border:1px solid var(--border); border-radius:12px; padding:10px; background:#fafbff; margin-bottom:10px}
 .et-item-head{display:grid; grid-template-columns:1fr 90px 36px 36px 36px; gap:6px; align-items:center; margin-bottom:8px}
 .et-level{display:grid; grid-template-columns:1fr 80px 36px; gap:6px; margin-bottom:6px}
-.et-ach{display:grid; grid-template-columns:56px 1fr 36px; gap:6px; margin-bottom:6px}
-.et-item-head input, .et-level input, .et-ach input{width:100%; min-width:0}
+.et-item-head input, .et-level input{width:100%; min-width:0}
 .et-warn{font-size:12px; color:var(--danger); margin-top:4px}
 .et-total{font-weight:700; margin-top:6px}
-.et-types{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:14px}
-.et-types label{display:flex; align-items:center; gap:4px; cursor:pointer}
 .ev-scroll{overflow:auto}
-.ev-score{min-width:560px}
 .ev-score td, .ev-score th{white-space:nowrap; vertical-align:middle}
-.ev-score select{padding:5px 6px; font-size:13px; min-width:72px}
-.ev-score select.saved{border-color:var(--ok); box-shadow:0 0 0 3px rgba(5,150,105,.18)}
+.ev-score td, .ev-score th{padding:8px 6px}
+.ev-score{overflow:visible}
+/* 옆으로 스크롤해도 학생 이름은 고정 */
+.ev-score .sc-name{position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 var(--border)}
+.ev-score thead .sc-name{background:#f8fafc}
+.ev-score tr.partial .sc-name{background:#fffbeb}
+.ev-score input.sc-in{width:60px; text-align:center; padding:7px 4px; font-size:15px}
+.ev-score th input.sc-in{font-size:13px; margin-top:4px}
+.ev-score input.saved{border-color:var(--ok); box-shadow:0 0 0 3px rgba(5,150,105,.18)}
+.ev-score input.bad{border:2px solid var(--danger); color:var(--danger); font-weight:800; background:#fff1f2}
 .ev-score th small{display:block; font-weight:500; color:var(--muted)}
+.ev-score th small.sc-allowed{font-size:11px; white-space:normal; max-width:90px}
 .ev-score tr.partial td{background:#fffbeb}
 .ev-legend{margin:8px 0 12px; font-size:13px}
 .ev-legend summary{cursor:pointer; font-weight:700; color:#334155}
@@ -1772,8 +1777,6 @@ box.innerHTML = kpis + head + body + '</tbody></table>';
    - 테이블: eval_students, eval_tasks, eval_items, eval_item_levels, eval_scores
    - SQL: supabase/evaluation.sql
 ========================================================= */
-const EVAL_TYPES = ['서술·논술','구술·발표','토의·토론','프로젝트','실험·실습','포트폴리오','기타',
-'교사 관찰 및 기록','자기평가','동료평가'];
 const ev = {
 school: '', schools: [],
 students: [], tasks: [], scoreRows: [], // 현재 학교 데이터
@@ -1813,9 +1816,7 @@ return { id: l.id, description: l.description, score: evNum(l.score) };
 });
 return {
 id: t.id, school: t.school, title: t.title, target: t.target || '',
-weight_pct: t.weight_pct, standards: t.standards || '',
-achievement_levels: t.achievement_levels || [], eval_types: t.eval_types || [],
-notes: t.notes || '', published: !!t.published, items: items
+weight_pct: t.weight_pct, published: !!t.published, items: items
 };
 }
 function taskMax(t){
@@ -2003,8 +2004,7 @@ if (id){
 ev.editing = JSON.parse(JSON.stringify(evTask(id)));
 } else {
 ev.editing = {
-title: '', target: '', weight_pct: '', standards: '', notes: '', published: false, eval_types: [],
-achievement_levels: ['A','B','C','D','E'].map(function(g){ return { grade: g, desc: '' }; }),
+title: '', target: '', weight_pct: '', published: false,
 items: [{ name: '', max_score: '', levels: [{ description: '', score: '' }] }]
 };
 }
@@ -2028,19 +2028,10 @@ box.innerHTML =
 '<label class="field">대상 (선택)<input type="text" id="etTarget" placeholder="예: 1학년" value="'+esc(t.target)+'"/></label>' +
 '<label class="field">반영 비율 % (선생님만 보임)<input type="number" step="any" id="etWeight" placeholder="예: 30" value="'+esc(t.weight_pct == null ? '' : t.weight_pct)+'"/></label>' +
 '</div>' +
-'<label class="field" style="margin-top:8px">성취기준<textarea id="etStandards" rows="2" placeholder="[9인생01-01] 인공지능의 개념을 이해하고, 인공지능에 대해 설명한다.">'+esc(t.standards)+'</textarea></label>' +
-'<h3>성취기준별 성취수준</h3>' +
-'<div id="etAch">' + t.achievement_levels.map(etAchRow).join('') + '</div>' +
-'<button class="btn ghost sm" onclick="etAddAch()">＋ 성취수준 추가</button>' +
-'<h3>평가 유형</h3>' +
-'<div class="et-types" id="etTypes">' + EVAL_TYPES.map(function(n){
-return '<label><input type="checkbox" value="'+esc(n)+'" '+(t.eval_types.indexOf(n) >= 0 ? 'checked' : '')+'/>'+esc(n)+'</label>';
-}).join('') + '</div>' +
 '<h3>채점 요소 · 채점 기준 · 배점</h3>' +
 '<div id="etItems">' + t.items.map(etItemBlock).join('') + '</div>' +
 '<button class="btn ghost sm" onclick="etAddItem()">＋ 채점 요소 추가</button>' +
 '<div class="et-total" id="etTotal"></div>' +
-'<label class="field" style="margin-top:12px">유의사항<textarea id="etNotes" rows="3" placeholder="본인의 의사에 의한 미응시 및 결과물 미제출자인 경우 0점">'+esc(t.notes)+'</textarea></label>' +
 '<label class="flex" style="margin-top:10px; align-items:center; gap:6px; font-size:14px; cursor:pointer">' +
 '<input type="checkbox" id="etPublished" '+(t.published ? 'checked' : '')+'/> 학생에게 공개 (점수가 입력된 학생만 조회됩니다)</label>' +
 '<div class="flex" style="margin-top:14px">' +
@@ -2048,12 +2039,6 @@ return '<label><input type="checkbox" value="'+esc(n)+'" '+(t.eval_types.indexOf
 '<button class="btn ghost" onclick="cancelTaskEditor()">취소</button>' +
 '</div>';
 etValidate();
-}
-function etAchRow(a){
-return '<div class="et-ach">' +
-'<input type="text" class="et-a-grade" value="'+esc(a.grade)+'" placeholder="A"/>' +
-'<input type="text" class="et-a-desc" value="'+esc(a.desc)+'" placeholder="성취수준 설명"/>' +
-'<button class="icon-btn" title="삭제" onclick="this.parentElement.remove()">✕</button></div>';
 }
 function etLevelRow(l){
 return '<div class="et-level" data-id="'+(l.id || '')+'">' +
@@ -2073,10 +2058,6 @@ return '<div class="et-item" data-id="'+(it.id || '')+'">' +
 '<div class="et-levels">' + it.levels.map(etLevelRow).join('') + '</div>' +
 '<button class="btn ghost sm" onclick="etAddLevel(this)">＋ 채점 기준 추가</button>' +
 '<div class="et-warn"></div></div>';
-}
-function etAddAch(){
-const n = document.querySelectorAll('#etAch .et-ach').length;
-document.getElementById('etAch').insertAdjacentHTML('beforeend', etAchRow({ grade: String.fromCharCode(65 + n), desc: '' }));
 }
 function etAddItem(){
 document.getElementById('etItems').insertAdjacentHTML('beforeend',
@@ -2126,6 +2107,8 @@ if (!block.querySelectorAll('.et-level').length) warns.push('채점 기준을 1�
 if (maxStr === '') warns.push('배점을 입력하세요.');
 else if (scores.length && Math.max.apply(null, scores) !== max)
 warns.push('가장 높은 점수(' + evFmt(Math.max.apply(null, scores)) + ')가 배점(' + evFmt(max) + ')과 다릅니다.');
+if (scores.some(function(v, i){ return scores.indexOf(v) !== i; }))
+warns.push('같은 점수가 두 번 있습니다. 점수 입력에서는 위쪽 기준으로 저장됩니다.');
 block.querySelector('.et-warn').textContent = warns.join(' ');
 });
 const el = document.getElementById('etTotal');
@@ -2138,13 +2121,7 @@ school: ev.school,
 title: document.getElementById('etTitle').value.trim(),
 target: document.getElementById('etTarget').value.trim(),
 weight_pct: document.getElementById('etWeight').value,
-standards: document.getElementById('etStandards').value.trim(),
-notes: document.getElementById('etNotes').value.trim(),
 published: document.getElementById('etPublished').checked,
-eval_types: Array.prototype.map.call(document.querySelectorAll('#etTypes input:checked'), function(i){ return i.value; }),
-achievement_levels: Array.prototype.map.call(document.querySelectorAll('#etAch .et-ach'), function(r){
-return { grade: r.querySelector('.et-a-grade').value.trim(), desc: r.querySelector('.et-a-desc').value.trim() };
-}).filter(function(a){ return a.grade || a.desc; }),
 items: Array.prototype.map.call(document.querySelectorAll('#etItems .et-item'), function(b){
 return {
 id: b.dataset.id || null,
@@ -2198,10 +2175,16 @@ const m = {};
 ev.scoreRows.forEach(function(r){ m[scoreKey(r.student_id, r.item_id)] = r; });
 return m;
 }
-function levelLabel(item, l){
-// 같은 채점 요소 안에 같은 점수가 둘 이상이면 몇 번째 기준인지 덧붙임
-const same = item.levels.filter(function(x){ return x.score === l.score; });
-return evFmt(l.score) + '점' + (same.length > 1 ? ' (' + (item.levels.indexOf(l) + 1) + '번 기준)' : '');
+/* 입력한 점수 → 채점 기준 (같은 점수가 둘이면 첫 번째 기준) */
+function levelOfScore(item, value){
+const v = String(value).trim();
+if (v === '' || !isFinite(Number(v))) return null;
+for (let i = 0; i < item.levels.length; i++) if (item.levels[i].score === Number(v)) return item.levels[i];
+return null;
+}
+function allowedScores(item){
+const seen = {};
+return item.levels.map(function(l){ return evFmt(l.score); }).filter(function(v){ return seen[v] ? false : (seen[v] = true); });
 }
 function renderScoreTable(){
 const box = document.getElementById('scBody');
@@ -2221,24 +2204,21 @@ it.levels.map(function(l){ return '<tr><td>'+esc(l.description)+'</td><td class=
 });
 legend += '</details>';
 
-let html = legend + '<div class="ev-scroll"><table class="ev-score"><thead><tr><th class="num">번호</th><th>이름</th>';
+let html = legend + '<div class="ev-scroll"><table class="ev-score"><thead><tr><th class="sc-name">학생</th>';
 task.items.forEach(function(it){
 html += '<th>' + esc(it.name) + '<small>' + evFmt(it.max_score) + '점</small>' +
-'<select title="빈칸만 이 점수로 채웁니다" onchange="fillScoreColumn(this,'+it.id+')">' +
-'<option value="">빈칸 채우기</option>' + it.levels.map(function(l){ return opt(l.id, levelLabel(it, l)); }).join('') +
-'</select></th>';
+'<small class="sc-allowed">' + allowedScores(it).join(' · ') + '</small>' +
+'<input type="text" inputmode="decimal" class="sc-in" placeholder="일괄" title="빈칸만 이 점수로 채웁니다" onchange="fillScoreColumn(this,'+it.id+')"/></th>';
 });
 html += '<th class="num">합계<small>' + evFmt(taskMax(task)) + '점</small></th></tr></thead><tbody>';
 students.forEach(function(s){
-html += '<tr id="scRow'+s.id+'"><td class="num">'+s.number+'</td><td>'+esc(s.name)+'</td>';
+html += '<tr id="scRow'+s.id+'"><td class="sc-name"><b>'+s.number+'</b> '+esc(s.name)+'</td>';
 task.items.forEach(function(it){
 const r = map[scoreKey(s.id, it.id)];
 const cur = r ? evLevel(r.level_id) : null;
-html += '<td><select data-sid="'+s.id+'" data-iid="'+it.id+'" onchange="saveScore(this)"' +
-(cur ? ' title="'+esc(cur.description)+'"' : '') + '><option value="">-</option>' +
-it.levels.map(function(l){
-return '<option value="'+l.id+'"'+(r && r.level_id === l.id ? ' selected' : '')+'>'+esc(levelLabel(it, l))+'</option>';
-}).join('') + '</select></td>';
+html += '<td><input type="text" inputmode="decimal" autocomplete="off" class="sc-in sc-cell" data-sid="'+s.id+'" data-iid="'+it.id+'"' +
+' value="'+(cur ? evFmt(cur.score) : '')+'"'+(cur ? ' title="'+esc(cur.description)+'"' : '') +
+' oninput="checkScoreInput(this)" onchange="saveScore(this)" onkeydown="scoreInputKey(event,this)"/></td>';
 });
 html += '<td class="num"><b class="sc-total"></b></td></tr>';
 });
@@ -2249,6 +2229,28 @@ html += '</tbody></table></div>' +
 box.innerHTML = html;
 students.forEach(function(s){ updateScoreRow(s.id, task); });
 updateScoreSummary(task, students);
+}
+function scoreItem(inp){
+const task = evTask(Number(document.getElementById('scTask').value));
+const iid = Number(inp.dataset.iid);
+return task.items.find(function(i){ return i.id === iid; });
+}
+/* 등록된 점수가 아니면 빨간 굵은 글씨로 표시 */
+function checkScoreInput(inp){
+const item = scoreItem(inp);
+const v = inp.value.trim();
+const bad = v !== '' && !levelOfScore(item, v);
+inp.classList.toggle('bad', bad);
+if (bad) inp.title = '틀린 점수입니다. 입력 가능: ' + allowedScores(item).join(', ');
+return !bad;
+}
+/* Enter : 같은 채점 요소의 다음 학생으로 이동 */
+function scoreInputKey(e, inp){
+if (e.key !== 'Enter') return;
+e.preventDefault();
+const cells = Array.prototype.slice.call(document.querySelectorAll('.sc-cell[data-iid="'+inp.dataset.iid+'"]'));
+const next = cells[cells.indexOf(inp) + 1];
+if (next){ next.focus(); next.select(); } else inp.blur();
 }
 function studentTotal(sid, task, map){
 let total = 0, filled = 0;
@@ -2271,19 +2273,24 @@ students.forEach(function(s){
 const t = studentTotal(s.id, task, map);
 if (t.filled === task.items.length && task.items.length){ done++; sum += t.total; }
 });
-document.getElementById('scSummary').textContent =
-'입력 완료 ' + done + ' / ' + students.length + '명' + (done ? ' · 평균 ' + evFmt(sum / done) + '점' : '');
+const bad = document.querySelectorAll('.sc-cell.bad').length;
+document.getElementById('scSummary').innerHTML =
+'입력 완료 ' + done + ' / ' + students.length + '명' + (done ? ' · 평균 ' + evFmt(sum / done) + '점' : '') +
+(bad ? ' · <b style="color:var(--danger)">틀린 점수 ' + bad + '칸 (저장되지 않음)</b>' : '');
 }
-async function saveScore(sel){
-const sid = Number(sel.dataset.sid), iid = Number(sel.dataset.iid);
-const levelId = sel.value ? Number(sel.value) : null;
+async function saveScore(inp){
+const sid = Number(inp.dataset.sid), iid = Number(inp.dataset.iid);
 const task = evTask(Number(document.getElementById('scTask').value));
+const students = evStudentsOf(document.getElementById('scClass').value);
 const idx = ev.scoreRows.findIndex(function(r){ return r.student_id === sid && r.item_id === iid; });
-const before = idx >= 0 ? ev.scoreRows[idx].level_id : '';
+const before = idx >= 0 ? evLevel(ev.scoreRows[idx].level_id) : null;
+if (!checkScoreInput(inp)){ updateScoreSummary(task, students); return; }
+const level = levelOfScore(scoreItem(inp), inp.value);
+if ((level && before && level.id === before.id) || (!level && !before)){ updateScoreSummary(task, students); return; }
 try {
-if (levelId){
+if (level){
 const row = must(await sb.from('eval_scores')
-.upsert({ student_id: sid, item_id: iid, level_id: levelId, updated_at: new Date().toISOString() }, { onConflict: 'student_id,item_id' })
+.upsert({ student_id: sid, item_id: iid, level_id: level.id, updated_at: new Date().toISOString() }, { onConflict: 'student_id,item_id' })
 .select('id,student_id,item_id,level_id').single());
 if (idx >= 0) ev.scoreRows[idx] = row; else ev.scoreRows.push(row);
 } else {
@@ -2292,28 +2299,31 @@ if (idx >= 0) ev.scoreRows.splice(idx, 1);
 }
 } catch (e) {
 toast(e.message, 'err');
-sel.value = before;
+inp.value = before ? evFmt(before.score) : '';
 return;
 }
-const l = evLevel(levelId);
-sel.title = l ? l.description : '';
-sel.classList.add('saved');
-setTimeout(function(){ sel.classList.remove('saved'); }, 700);
+inp.value = level ? evFmt(level.score) : '';
+inp.title = level ? level.description : '';
+inp.classList.add('saved');
+setTimeout(function(){ inp.classList.remove('saved'); }, 700);
 updateScoreRow(sid, task);
-updateScoreSummary(task, evStudentsOf(document.getElementById('scClass').value));
+updateScoreSummary(task, students);
 }
-async function fillScoreColumn(sel, iid){
-const levelId = Number(sel.value);
-sel.value = '';
-if (!levelId) return;
+async function fillScoreColumn(inp, iid){
 const task = evTask(Number(document.getElementById('scTask').value));
+const item = task.items.find(function(i){ return i.id === iid; });
+const value = inp.value.trim();
+inp.value = '';
+if (!value) return;
+const level = levelOfScore(item, value);
+if (!level){ toast('틀린 점수입니다. 입력 가능: ' + allowedScores(item).join(', '), 'err'); return; }
 const map = scoreMap();
 const targets = evStudentsOf(document.getElementById('scClass').value).filter(function(s){ return !map[scoreKey(s.id, iid)]; });
 if (!targets.length){ toast('빈칸이 없습니다.'); return; }
-if (!confirm('빈칸인 ' + targets.length + '명을 ' + levelLabel(task.items.find(function(i){ return i.id === iid; }), evLevel(levelId)) + '으로 채울까요?')) return;
+if (!confirm('빈칸인 ' + targets.length + '명의 "' + item.name + '"을(를) ' + evFmt(level.score) + '점으로 채울까요?')) return;
 try {
 const rows = must(await sb.from('eval_scores').insert(targets.map(function(s){
-return { student_id: s.id, item_id: iid, level_id: levelId };
+return { student_id: s.id, item_id: iid, level_id: level.id };
 })).select('id,student_id,item_id,level_id'));
 ev.scoreRows = ev.scoreRows.concat(rows);
 toast(rows.length + '명 입력했습니다.', 'ok');

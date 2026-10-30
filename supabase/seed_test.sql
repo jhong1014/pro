@@ -20,17 +20,8 @@ begin
   insert into public.eval_students (school, class_name, number, name, access_code)
   values ('테스트중학교', '1-1', 3, '이준호', '333333') returning id into v_s3;
 
-  insert into public.eval_tasks (school, title, target, weight_pct, standards, achievement_levels, eval_types, notes, published)
-  values ('테스트중학교', '가. 생활 속 인공지능 찾아 사례 조사 및 발표', '1학년', 30,
-    E'[9인생01-01] 인공지능의 개념을 이해하고, 인공지능에 대해 설명한다.\n[9인생01-03] 일상생활에서 사용되고 있는 인공지능의 활용 사례를 발표한다.',
-    '[{"grade":"A","desc":"다양한 인공지능의 활용 사례와 삶에 미치는 영향을 보고서로 작성하여 발표하고 긍정적, 부정적 영향에 대한 의견을 다수 제시함."},
-      {"grade":"B","desc":"인공지능의 활용 사례와 삶에 미치는 영향을 보고서로 작성하여 발표하고 긍정적, 부정적 영향에 대한 의견을 다수 제시함."},
-      {"grade":"C","desc":"인공지능의 활용 사례를 찾아 보고서로 작성하여 발표하고 긍정적, 부정적 영향에 대한 의견을 제시함."},
-      {"grade":"D","desc":"인공지능의 활용 사례를 찾아 보고서로 작성함."},
-      {"grade":"E","desc":"인공지능의 활용 사례를 찾아보는 활동에 참여함."}]'::jsonb,
-    array['서술·논술','구술·발표','포트폴리오','교사 관찰 및 기록','자기평가'],
-    E'○ 본인의 의사에 의한 미응시 및 결과물 미제출자인 경우 0점\n○ 학업성적관리규정에 의한 미응시자인 경우 규정에 따라 처리\n○ 감염병 관련 등교중지 등으로 인한 결시생의 경우 규정에 따라 처리',
-    true)
+  insert into public.eval_tasks (school, title, target, weight_pct, published)
+  values ('테스트중학교', '가. 생활 속 인공지능 찾아 사례 조사 및 발표', '1학년', 30, true)
   returning id into v_task;
 
   -- 내용의 적절성 (30)
