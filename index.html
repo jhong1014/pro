@@ -422,6 +422,7 @@ body{padding:12px}
 <div class="tabs" data-mode="eval" style="display:none">
 <div class="tab" data-view="etask">평가 기준</div>
 <div class="tab" data-view="escore">점수 입력</div>
+<div class="tab" data-view="esum">과제별 합계</div>
 <div class="tab" data-view="estu">학생 명단</div>
 </div>
 <!-- 수행평가 : 학교 선택 -->
@@ -444,6 +445,14 @@ body{padding:12px}
 <label class="field">반<select id="scClass" onchange="renderScoreTable()"></select></label>
 </div>
 <div id="scBody" style="margin-top:12px"></div>
+</div>
+<!-- 수행평가 : 과제별 합계 -->
+<div id="esumCard" class="card" style="display:none">
+<h2>과제별 합계</h2>
+<div class="row">
+<label class="field">반<select id="smClass" onchange="renderSummaryTable()"></select></label>
+</div>
+<div id="smBody" style="margin-top:12px"></div>
 </div>
 <!-- 수행평가 : 학생 명단 -->
 <div id="estuCard" class="card" style="display:none">
@@ -1147,9 +1156,10 @@ document.getElementById('ttCard').style.display = (v==='tt') ? '' : 'none';
 document.getElementById('statCard').style.display = (v==='stat')? '' : 'none';
 document.getElementById('addCard').style.display = (v==='add') ? '' : 'none';
 document.getElementById('holCard').style.display = (v==='hol') ? '' : 'none';
-document.getElementById('evalBar').style.display = (['etask','escore','estu'].indexOf(v)>=0) ? '' : 'none';
+document.getElementById('evalBar').style.display = (['etask','escore','esum','estu'].indexOf(v)>=0) ? '' : 'none';
 document.getElementById('etaskCard').style.display = (v==='etask') ? '' : 'none';
 document.getElementById('escoreCard').style.display = (v==='escore') ? '' : 'none';
+document.getElementById('esumCard').style.display = (v==='esum') ? '' : 'none';
 document.getElementById('estuCard').style.display = (v==='estu') ? '' : 'none';
 // Todo는 일 뷰에서만
 document.getElementById('todoCard').style.display = (v==='day') ? '' : 'none';
@@ -1193,7 +1203,7 @@ if (v==='day') { loadDay(); loadTodos(); }
 else if (v==='week') loadWeek();
 else if (v==='cal') loadCalendar();
 else if (v==='hol') loadHolidays();
-else if (['etask','escore','estu'].indexOf(v)>=0) loadEval();
+else if (['etask','escore','esum','estu'].indexOf(v)>=0) loadEval();
 }
 
 /* ============== 일 뷰 (그리드) ============== */
@@ -1883,7 +1893,7 @@ return sb.from('eval_scores').select('id,student_id,item_id,level_id').in('item_
 }
 async function loadEval(){
 const v = state.view;
-const box = { etask: 'etList', escore: 'scBody', estu: 'esList' }[v];
+const box = { etask: 'etList', escore: 'scBody', esum: 'smBody', estu: 'esList' }[v];
 if (!(v === 'etask' && ev.editing))
 document.getElementById(box).innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>';
 try {
@@ -1897,6 +1907,7 @@ return;
 if (state.view !== v) return;
 if (v === 'etask') renderTaskView();
 else if (v === 'escore') renderScoreView();
+else if (v === 'esum') renderSummaryView();
 else renderStudentView();
 }
 
@@ -2334,7 +2345,7 @@ function downloadScoresCsv(){
 const task = evTask(Number(document.getElementById('scTask').value));
 const cls = document.getElementById('scClass').value;
 const map = scoreMap();
-function cell(v){ v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+const cell = csvCell;
 const lines = [['반','번호','이름'].concat(task.items.map(function(i){ return i.name + '(' + evFmt(i.max_score) + ')'; }), ['합계']).map(cell).join(',')];
 evStudentsOf(cls).forEach(function(s){
 const t = studentTotal(s.id, task, map);
@@ -2343,12 +2354,89 @@ const r = map[scoreKey(s.id, it.id)];
 return r ? evFmt(evLevel(r.level_id).score) : '';
 }), [t.filled ? evFmt(t.total) : '']).map(cell).join(','));
 });
-const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+saveCsv(lines, ev.school + '_' + cls + '_' + task.title + '.csv');
+}
+function csvCell(v){ v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+/* 엑셀에서 한글이 깨지지 않도록 BOM을 붙여 저장 */
+function saveCsv(lines, filename){
+const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
 const a = document.createElement('a');
 a.href = URL.createObjectURL(blob);
-a.download = ev.school + '_' + cls + '_' + task.title + '.csv';
+a.download = filename.replace(/[\\/:*?"<>|]/g, '_');
+document.body.appendChild(a);
 a.click();
+a.remove();
 setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+
+/* ============== 과제별 합계 (번호 · 이름 · 과제마다 합계) ============== */
+function renderSummaryView(){
+const sel = document.getElementById('smClass');
+const prev = sel.value;
+const classes = evClasses();
+sel.innerHTML = classes.length ? '<option value="">전체 반</option>' + classes.map(function(c){ return opt(c); }).join('')
+: '<option value="">(학생 명단 없음)</option>';
+if (classes.indexOf(prev) >= 0) sel.value = prev;
+renderSummaryTable();
+}
+// 학생별 · 과제별 합계 : { 학생id: { 과제id: { total, filled } } }
+function taskTotals(){
+const taskOfItem = {}, scoreOfLevel = {}, out = {};
+ev.tasks.forEach(function(t){ t.items.forEach(function(i){
+taskOfItem[i.id] = t.id;
+i.levels.forEach(function(l){ scoreOfLevel[l.id] = l.score; });
+}); });
+ev.scoreRows.forEach(function(r){
+const tid = taskOfItem[r.item_id];
+const st = out[r.student_id] = out[r.student_id] || {};
+const t = st[tid] = st[tid] || { total: 0, filled: 0 };
+t.total += evNum(scoreOfLevel[r.level_id]);
+t.filled++;
+});
+return out;
+}
+function summaryRows(){
+const cls = document.getElementById('smClass').value;
+const totals = taskTotals();
+return (cls ? evStudentsOf(cls) : ev.students).map(function(s){
+return { student: s, cells: ev.tasks.map(function(t){
+const v = (totals[s.id] || {})[t.id];
+return { value: v ? evFmt(v.total) : '', partial: !!v && v.filled < t.items.length };
+}) };
+});
+}
+function renderSummaryTable(){
+const box = document.getElementById('smBody');
+const all = !document.getElementById('smClass').value;
+if (!ev.school){ box.innerHTML = '<div class="empty"><div class="big">학교를 먼저 선택하세요</div></div>'; return; }
+if (!ev.tasks.length){ box.innerHTML = '<div class="empty"><div class="big">평가 기준이 없습니다</div><div>[평가 기준] 탭에서 먼저 입력하세요.</div></div>'; return; }
+if (!ev.students.length){ box.innerHTML = '<div class="empty"><div class="big">학생 명단이 없습니다</div><div>[학생 명단] 탭에서 먼저 등록하세요.</div></div>'; return; }
+let html = '<div class="ev-scroll"><table class="ev-score"><thead><tr>' +
+(all ? '<th>반</th>' : '') + '<th class="num">번호</th><th>이름</th>' +
+ev.tasks.map(function(t){ return '<th class="num" style="white-space:normal; min-width:90px">' + esc(t.title) + '<small>' + evFmt(taskMax(t)) + '점</small></th>'; }).join('') +
+'</tr></thead><tbody>';
+summaryRows().forEach(function(r){
+html += '<tr>' + (all ? '<td>' + esc(r.student.class_name) + '</td>' : '') +
+'<td class="num">' + r.student.number + '</td><td>' + esc(r.student.name) + '</td>' +
+r.cells.map(function(c){
+return '<td class="num"' + (c.partial ? ' style="background:#fffbeb" title="일부 채점 요소만 입력됨"' : '') + '>' + (c.value || '<span class="muted">-</span>') + '</td>';
+}).join('') + '</tr>';
+});
+html += '</tbody></table></div>' +
+'<div class="flex" style="margin-top:10px; align-items:center; justify-content:space-between">' +
+'<div class="muted" style="font-size:12px">노란 칸: 일부 채점 요소만 입력된 합계</div>' +
+'<button class="btn ghost sm" onclick="downloadSummaryCsv()">CSV 내려받기</button></div>';
+box.innerHTML = html;
+}
+function downloadSummaryCsv(){
+const cls = document.getElementById('smClass').value;
+const head = (cls ? [] : ['반']).concat(['번호', '이름'], ev.tasks.map(function(t){ return t.title; }));
+const lines = [head.map(csvCell).join(',')];
+summaryRows().forEach(function(r){
+lines.push((cls ? [] : [r.student.class_name]).concat([r.student.number, r.student.name],
+r.cells.map(function(c){ return c.value; })).map(csvCell).join(','));
+});
+saveCsv(lines, ev.school + '_' + (cls || '전체') + '_과제별합계.csv');
 }
 
 /* ============== 학생 명단 ============== */
