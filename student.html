@@ -172,7 +172,7 @@ function render(d){
 const s = d.student;
 document.getElementById('loginCard').style.display = 'none';
 document.getElementById('outBtn').style.display = '';
-document.getElementById('who').textContent = s.school + ' ' + s.class_name + ' ' + s.number + '번 ' + s.name;
+document.getElementById('who').textContent = (s.school_year ? s.school_year + '학년도 · ' : '') + s.school + ' ' + s.class_name + ' ' + s.number + '번 ' + s.name;
 const box = document.getElementById('result');
 if (!d.tasks.length){
 box.innerHTML = '<div class="empty">아직 공개된 수행평가 결과가 없습니다.</div>';

@@ -1,5 +1,5 @@
 /* =========================================================
-   수행평가 테스트 데이터 (evaluation.sql 실행 후 실행)
+   수행평가 테스트 데이터 (evaluation.sql, school_year_settings.sql 실행 후 실행)
    - 학교: 테스트중학교 / 반: 1-1 / 학생 3명
    - 학생 테스트 계정: 테스트중학교 · 1-1 · 1번 · 확인코드 111111
    - 다시 실행하면 테스트중학교 데이터를 지우고 새로 만듭니다.
@@ -13,15 +13,15 @@ begin
   delete from public.eval_tasks where school = '테스트중학교';
   delete from public.eval_students where school = '테스트중학교';
 
-  insert into public.eval_students (school, class_name, number, name, access_code)
-  values ('테스트중학교', '1-1', 1, '홍길동', '111111') returning id into v_s1;
-  insert into public.eval_students (school, class_name, number, name, access_code)
-  values ('테스트중학교', '1-1', 2, '김민지', '222222') returning id into v_s2;
-  insert into public.eval_students (school, class_name, number, name, access_code)
-  values ('테스트중학교', '1-1', 3, '이준호', '333333') returning id into v_s3;
+  insert into public.eval_students (school_year, school, class_name, number, name, access_code)
+  values (2026, '테스트중학교', '1-1', 1, '홍길동', '111111') returning id into v_s1;
+  insert into public.eval_students (school_year, school, class_name, number, name, access_code)
+  values (2026, '테스트중학교', '1-1', 2, '김민지', '222222') returning id into v_s2;
+  insert into public.eval_students (school_year, school, class_name, number, name, access_code)
+  values (2026, '테스트중학교', '1-1', 3, '이준호', '333333') returning id into v_s3;
 
-  insert into public.eval_tasks (school, title, target, weight_pct, published)
-  values ('테스트중학교', '가. 생활 속 인공지능 찾아 사례 조사 및 발표', '1학년', 30, true)
+  insert into public.eval_tasks (school_year, school, title, target, weight_pct, published)
+  values (2026, '테스트중학교', '가. 생활 속 인공지능 찾아 사례 조사 및 발표', '1학년', 30, true)
   returning id into v_task;
 
   -- 내용의 적절성 (30)
