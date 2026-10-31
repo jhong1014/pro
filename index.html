@@ -6,18 +6,44 @@
 <title>수업 진도 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem('theme') || ''; } catch (e) {}</script>
 <style>
 :root{
 --card:#ffffff;
 --fg:#0f172a; --muted:#64748b;
 --border:#e2e8f0; --border-strong:#cbd5e1;
---primary:#4f46e5; --primary-2:#7c3aed;
---primary-soft:#eef2ff;
+--primary:#4f46e5; --primary-2:#7c3aed; --accent:#db2777;
+--primary-rgb:79,70,229;
+--primary-soft:#eef2ff; --primary-ink:#4338ca; --primary-line:#c7d2fe;
+--bg-a:#dbeafe; --bg-b:#ede9fe; --bg-c:#fae8ff; --bg-base:#f8fafc;
+--hero-radius:18px;
 --danger:#e11d48;
 --ok:#059669;
 --warn:#d97706;
 --shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.06);
 --radius:14px;
+}
+/* 화면 테마 (설정 탭에서 선택, html의 data-theme) */
+:root[data-theme="ocean"]{
+--primary:#0284c7; --primary-2:#0891b2; --accent:#14b8a6; --primary-rgb:2,132,199;
+--primary-soft:#e0f2fe; --primary-ink:#075985; --primary-line:#bae6fd;
+--bg-a:#cffafe; --bg-b:#dbeafe; --bg-c:#ccfbf1; --bg-base:#f6fbfd;
+}
+:root[data-theme="forest"]{
+--primary:#059669; --primary-2:#16a34a; --accent:#84cc16; --primary-rgb:5,150,105;
+--primary-soft:#dcfce7; --primary-ink:#166534; --primary-line:#bbf7d0;
+--bg-a:#d1fae5; --bg-b:#ecfccb; --bg-c:#dcfce7; --bg-base:#f7fbf7;
+}
+:root[data-theme="sunset"]{
+--primary:#ea580c; --primary-2:#e11d48; --accent:#f59e0b; --primary-rgb:234,88,12;
+--primary-soft:#ffedd5; --primary-ink:#9a3412; --primary-line:#fed7aa;
+--bg-a:#ffedd5; --bg-b:#fce7f3; --bg-c:#fef3c7; --bg-base:#fffaf5;
+}
+:root[data-theme="mono"]{
+--primary:#334155; --primary-2:#0f172a; --accent:#64748b; --primary-rgb:51,65,85;
+--primary-soft:#f1f5f9; --primary-ink:#0f172a; --primary-line:#cbd5e1;
+--bg-a:#e2e8f0; --bg-b:#f1f5f9; --bg-c:#e2e8f0; --bg-base:#f8fafc;
+--radius:8px; --hero-radius:10px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -25,18 +51,18 @@ body{
 font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
 color:var(--fg);
 background:
-radial-gradient(1200px 500px at -10% -10%, #dbeafe 0%, transparent 60%),
-radial-gradient(1000px 500px at 110% 0%, #ede9fe 0%, transparent 55%),
-radial-gradient(900px 500px at 50% 110%, #fae8ff 0%, transparent 55%),
-#f8fafc;
+radial-gradient(1200px 500px at -10% -10%, var(--bg-a) 0%, transparent 60%),
+radial-gradient(1000px 500px at 110% 0%, var(--bg-b) 0%, transparent 55%),
+radial-gradient(900px 500px at 50% 110%, var(--bg-c) 0%, transparent 55%),
+var(--bg-base);
 min-height:100vh;
 padding: 16px;
 }
 .wrap{max-width:1180px; margin:0 auto;}
 .hero{
-background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 55%, var(--accent) 100%);
 color:#fff;
-border-radius:18px;
+border-radius:var(--hero-radius);
 padding:20px 22px;
 box-shadow: var(--shadow);
 display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -66,8 +92,8 @@ transition: all .15s ease;
 }
 .tab:hover{background:#f1f5f9}
 .tab.active{
-background: linear-gradient(135deg,#4f46e5,#7c3aed);
-color:#fff; box-shadow: 0 6px 14px rgba(79,70,229,.25);
+background: linear-gradient(135deg,var(--primary),var(--primary-2));
+color:#fff; box-shadow: 0 6px 14px rgba(var(--primary-rgb),.25);
 }
 .card{
 background:var(--card);
@@ -100,16 +126,16 @@ padding:8px 10px; font-size:14px; color:var(--fg); outline:none;
 transition:.15s;
 font-family:inherit;
 }
-input:focus, select:focus, textarea:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,.15) }
+input:focus, select:focus, textarea:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(var(--primary-rgb),.15) }
 .btn{
 display:inline-flex; align-items:center; gap:6px;
 border:none; cursor:pointer; padding:9px 14px; border-radius:10px;
 font-weight:600; font-size:14px;
-background: linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff;
-box-shadow: 0 4px 10px rgba(79,70,229,.22);
+background: linear-gradient(135deg,var(--primary),var(--primary-2)); color:#fff;
+box-shadow: 0 4px 10px rgba(var(--primary-rgb),.22);
 transition:.15s;
 }
-.btn:hover{transform:translateY(-1px); box-shadow:0 6px 14px rgba(79,70,229,.32)}
+.btn:hover{transform:translateY(-1px); box-shadow:0 6px 14px rgba(var(--primary-rgb),.32)}
 .btn.ghost{ background:#fff; color:#334155; border:1px solid var(--border); box-shadow:none; }
 .btn.ghost:hover{background:#f8fafc}
 .btn.danger{background:linear-gradient(135deg,#ef4444,#db2777); box-shadow:0 4px 10px rgba(239,68,68,.22)}
@@ -152,9 +178,9 @@ min-height:80px; background:#fff; border:1px solid var(--border);
 border-radius:10px; padding:5px; position:relative; cursor:pointer;
 transition:.15s;
 }
-.cell:hover{border-color:var(--primary); box-shadow:0 3px 10px rgba(79,70,229,.12)}
+.cell:hover{border-color:var(--primary); box-shadow:0 3px 10px rgba(var(--primary-rgb),.12)}
 .cell.out{background:#f8fafc; color:#cbd5e1}
-.cell.today{border:2px solid var(--primary); box-shadow:0 3px 12px rgba(79,70,229,.15)}
+.cell.today{border:2px solid var(--primary); box-shadow:0 3px 12px rgba(var(--primary-rgb),.15)}
 .cell.holiday{background:#fff1f2; border-color:#fecdd3}
 .cell .d{font-weight:700; font-size:13px}
 .cell .d.sun{color:#dc2626}
@@ -182,7 +208,7 @@ padding:6px;
 padding:7px 4px; text-align:center; border-radius:8px; background:#f1f5f9;
 font-weight:700; font-size:13px; color:#334155;
 }
-.wg-head.today{background:#eef2ff; color:#4338ca; border:1px solid #c7d2fe}
+.wg-head.today{background:var(--primary-soft); color:var(--primary-ink); border:1px solid var(--primary-line)}
 .wg-head.holiday{background:#fff1f2; color:#be123c; border:1px solid #fecdd3}
 .wg-head .wg-dow{font-size:13px}
 .wg-head .wg-date{font-size:11px; opacity:.9; margin-top:2px}
@@ -209,7 +235,7 @@ transition:.12s;
 /* Todo List */
 .todo-card{background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:14px}
 .todo-card h3{margin:0 0 10px; font-size:15px; display:flex; align-items:center; gap:8px}
-.todo-card h3 .badge{background:#eef2ff; color:#4338ca; padding:2px 8px; border-radius:999px; font-size:11px}
+.todo-card h3 .badge{background:var(--primary-soft); color:var(--primary-ink); padding:2px 8px; border-radius:999px; font-size:11px}
 .todo-input{display:flex; gap:6px; margin-bottom:10px}
 .todo-input input{flex:1}
 .todo-list{display:flex; flex-direction:column; gap:6px}
@@ -243,7 +269,7 @@ background:#fff; cursor:pointer; font-weight:700; color:#64748b;
 .kpi{background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px 14px;}
 .kpi .label{font-size:12px; color:var(--muted)}
 .kpi .value{font-size:22px; font-weight:800; margin-top:2px}
-.kpi.p{background:linear-gradient(135deg,#eef2ff,#faf5ff); border-color:#e0e7ff}
+.kpi.p{background:linear-gradient(135deg,var(--primary-soft),#fff); border-color:var(--primary-line)}
 .kpi.o{background:linear-gradient(135deg,#ecfdf5,#f0fdfa); border-color:#bbf7d0}
 .kpi.w{background:linear-gradient(135deg,#fffbeb,#fef2f2); border-color:#fde68a}
 .toast{
@@ -275,7 +301,7 @@ min-height:80px;
 .modal .actions{display:flex; gap:8px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap}
 .hint{font-size:12px; color:var(--muted); margin-top:4px}
 .muted{color:var(--muted)}
-.badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#eef2ff; color:#4338ca}
+.badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; background:var(--primary-soft); color:var(--primary-ink)}
 .badge.warn{background:#fef3c7; color:#92400e}
 .badge.danger{background:#ffe4e6; color:#9f1239}
 /* [신규] 로딩 스켈레톤 */
@@ -293,9 +319,9 @@ margin-right:8px;
 .login-back{
 position:fixed; inset:0; z-index:9500; display:flex; align-items:center; justify-content:center; padding:16px;
 background:
-radial-gradient(1200px 500px at -10% -10%, #dbeafe 0%, transparent 60%),
-radial-gradient(1000px 500px at 110% 0%, #ede9fe 0%, transparent 55%),
-#f8fafc;
+radial-gradient(1200px 500px at -10% -10%, var(--bg-a) 0%, transparent 60%),
+radial-gradient(1000px 500px at 110% 0%, var(--bg-b) 0%, transparent 55%),
+var(--bg-base);
 }
 .login-back.hidden{display:none}
 .login-card{
@@ -354,6 +380,12 @@ background:#fffbeb; border:1px solid #fde68a; border-radius:10px; font-size:13px
 .ev-legend summary{cursor:pointer; font-weight:700; color:#334155}
 .ev-legend table{margin-top:8px}
 .code{font-family:ui-monospace, Menlo, monospace; letter-spacing:1px; font-weight:700}
+/* 설정 : 테마 고르기 */
+.themes{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px}
+.theme-opt{border:2px solid var(--border); border-radius:12px; padding:8px; cursor:pointer; background:#fff; font:inherit; text-align:left}
+.theme-opt.active{border-color:var(--primary); box-shadow:0 0 0 3px rgba(var(--primary-rgb),.18)}
+.theme-opt .sw{height:42px; border-radius:8px; margin-bottom:6px}
+.theme-opt .nm{font-weight:700; font-size:13px}
 /* 모바일 반응형 */
 @media (max-width: 780px){
 body{padding:12px}
@@ -401,7 +433,7 @@ body{padding:12px}
 <div class="hero">
 <div>
 <h1>정보 수업 진도</h1>
-<div class="sub"></div>
+<div class="sub" id="yearSub"></div>
 </div>
 <div class="badges">
 <div class="today-badge" id="todayBadge">오늘: -</div>
@@ -412,6 +444,7 @@ body{padding:12px}
 <div class="modes">
 <div class="mode active" data-mode="prog">진도 관리</div>
 <div class="mode" data-mode="eval">수행평가</div>
+<div class="mode" data-mode="set">설정</div>
 </div>
 <div class="tabs" data-mode="prog">
 <div class="tab active" data-view="day">일</div>
@@ -428,11 +461,34 @@ body{padding:12px}
 <div class="tab" data-view="esum">과제별 합계</div>
 <div class="tab" data-view="estu">학생 명단</div>
 </div>
+<div class="tabs" data-mode="set" style="display:none">
+<div class="tab" data-view="settings">설정</div>
+</div>
+<!-- 설정 -->
+<div id="setCard" class="card" style="display:none">
+<h2>설정</h2>
+<h3>학년도</h3>
+<div class="row">
+<label class="field">학년도<select id="setYear" onchange="changeYear()"></select></label>
+</div>
+<div class="hint">학년도는 3월 1일 ~ 다음 해 2월 말일입니다. 바꾸면 진도(학교 목록 · 수업시수 · 공휴일 목록)와 수행평가(평가 기준 · 학생 명단 · 점수)가 그 학년도 자료로 바뀝니다.<br>
+학생 조회 화면은 학생의 확인코드로 학년도를 찾아 보여주므로 여기 설정과 상관없이 동작합니다.</div>
+<h3>상단 D-day</h3>
+<div class="row">
+<label class="field">문구<input type="text" id="setDdayLabel" placeholder="예: 겨울방학까지"/></label>
+<label class="field">날짜<input type="date" id="setDdayDate"/></label>
+</div>
+<div class="hint">날짜를 비우면 D-day 표시를 숨깁니다.</div>
+<div style="margin-top:10px"><button class="btn" onclick="saveDday()">D-day 저장</button></div>
+<h3>화면 테마</h3>
+<div class="themes" id="setThemes"></div>
+<div class="hint">누르면 바로 바뀌고 저장됩니다.</div>
+</div>
 <!-- 수행평가 : 학교 선택 -->
 <div id="evalBar" class="card" style="display:none">
 <div class="ev-bar">
 <label class="field">학교<select id="evSchool" onchange="changeEvalSchool()"></select></label>
-<div class="hint" style="flex:1; min-width:200px">학교마다 평가 기준 · 학생 · 점수가 따로 관리됩니다.<br>학생 조회 화면: <a id="evStudentLink" href="student.html" target="_blank">student.html</a></div>
+<div class="hint" style="flex:1; min-width:200px"><b id="evYearLabel"></b> 학교마다 평가 기준 · 학생 · 점수가 따로 관리됩니다.<br>학생 조회 화면: <a id="evStudentLink" href="student.html" target="_blank">student.html</a></div>
 </div>
 </div>
 <!-- 수행평가 : 평가 기준 -->
@@ -609,7 +665,10 @@ body{padding:12px}
 <div class="modal">
 <h3>평가 기준 복사</h3>
 <div class="meta" id="cpMeta"></div>
+<div class="row">
+<label class="field">복사할 학년도<select id="cpYear"></select></label>
 <label class="field">복사할 학교<select id="cpSchool"></select></label>
+</div>
 <div class="hint">채점 요소와 채점 기준이 그대로 복사됩니다. 점수는 복사되지 않고, 복사본은 학생 비공개로 시작합니다.</div>
 <div class="actions">
 <button class="btn ghost" onclick="closeCopyModal()">취소</button>
@@ -677,7 +736,8 @@ async function fetchAll(makeQuery){
 let _schools = null;
 async function loadSchoolList(){
   if (_schools) return _schools;
-  const rows = await fetchAll(function(){ return sb.from('records').select('school').order('id'); });
+  const yr = yearRange(settings.year);
+const rows = await fetchAll(function(){ return sb.from('records').select('school').gte('date', yr.start).lte('date', yr.end).order('id'); });
   const set = {};
   rows.forEach(function(r){ if (r.school) set[r.school] = true; });
   _schools = Object.keys(set).sort();
@@ -988,13 +1048,19 @@ document.addEventListener('DOMContentLoaded', async function(){
 });
 
 /* =========================================================
-★ 방학 D-day 설정
-→ 아래 두 값만 수정하세요.
-· VACATION_DATE : 방학 시작일 (yyyy-MM-dd)
-· VACATION_LABEL: 뱃지에 표시할 이름
+설정 (app_settings 테이블, [설정] 탭에서 수정)
+· year  : 학년도 (3월 ~ 다음 해 2월)
+· dday  : 상단 D-day 날짜와 문구
+· theme : 화면 테마
 ========================================================= */
-const VACATION_DATE = '2027-01-08';
-const VACATION_LABEL = '겨울방학까지';
+const THEMES = [
+{ id: 'violet', name: '기본 (보라)', colors: ['#4f46e5', '#7c3aed', '#db2777'] },
+{ id: 'ocean', name: '바다', colors: ['#0284c7', '#0891b2', '#14b8a6'] },
+{ id: 'forest', name: '숲', colors: ['#059669', '#16a34a', '#84cc16'] },
+{ id: 'sunset', name: '노을', colors: ['#ea580c', '#e11d48', '#f59e0b'] },
+{ id: 'mono', name: '모노', colors: ['#334155', '#0f172a', '#64748b'] }
+];
+let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet' };
 
 let state = {
 view: 'day',
@@ -1003,7 +1069,7 @@ today: '',
 schools: [],
 currentRecords: [],
 editingRow: null,
-modeView: { prog: 'day', eval: 'etask' }
+modeView: { prog: 'day', eval: 'etask', set: 'settings' }
 };
 
 /* [성능] 뷰별 응답 캐시 (같은 날짜를 다시 볼 때 서버 왕복 생략)
@@ -1073,13 +1139,49 @@ document.getElementById('viewerBody').innerHTML =
 /* D-day */
 function updateDday(todayStr){
 const el = document.getElementById('ddayBadge');
-if (!VACATION_DATE) { el.textContent = ''; return; }
-const diff = daysBetween(VACATION_DATE, todayStr);
-let txt;
-if (diff > 0) txt = VACATION_LABEL + '까지 <b>D-' + diff + '</b>';
-else if (diff === 0) txt = VACATION_LABEL + ' <b>D-DAY</b>';
-else txt = VACATION_LABEL + ' <b>D+' + (-diff) + '</b>';
-el.innerHTML = txt;
+const d = settings.dday || {};
+el.style.display = d.date ? '' : 'none';
+if (!d.date) return;
+const diff = daysBetween(d.date, todayStr);
+const label = esc(d.label || '');
+if (diff > 0) el.innerHTML = label + ' <b>D-' + diff + '</b>';
+else if (diff === 0) el.innerHTML = label + ' <b>D-DAY</b>';
+else el.innerHTML = label + ' <b>D+' + (-diff) + '</b>';
+}
+
+/* ---------- 학년도 : Y학년도 = Y-03-01 ~ (Y+1)-02 말일 ---------- */
+function schoolYearOf(dateStr){
+const d = parseD(dateStr);
+return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1;
+}
+function yearRange(y){
+return { start: y + '-03-01', end: fmt(new Date(y + 1, 2, 0)) };
+}
+// 학년도를 바꿨을 때 처음 보여줄 날짜 : 오늘이 그 학년도면 오늘, 아니면 3월 2일
+function yearDefaultDate(y){
+return schoolYearOf(state.today) === y ? state.today : y + '-03-02';
+}
+
+/* ---------- 설정 불러오기 · 저장 ---------- */
+async function loadSettings(){
+const rows = must(await sb.from('app_settings').select('key,value'));
+rows.forEach(function(r){
+if (r.key === 'school_year') settings.year = Number(r.value) || 0;
+else if (r.key === 'dday') settings.dday = r.value || {};
+else if (r.key === 'theme') settings.theme = r.value || 'violet';
+});
+}
+async function saveSetting(key, value){
+must(await sb.from('app_settings').upsert({ key: key, value: value, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
+}
+function applyTheme(id){
+const t = (id && id !== 'violet') ? id : '';
+document.documentElement.dataset.theme = t;
+try { localStorage.setItem('theme', t); } catch (e) {}
+}
+function applyYearLabels(){
+document.getElementById('yearSub').textContent = settings.year + '학년도';
+document.getElementById('evYearLabel').textContent = settings.year + '학년도 ·';
 }
 
 /* 학교 목록 UI 갱신 (state.schools 기준) */
@@ -1096,12 +1198,18 @@ state.schools.map(function(s){ return '<option value="'+esc(s)+'">'+esc(s)+'</op
    (기존: getToday → getSchools → getRecords → getTodos 4회 왕복)
 ========================================================= */
 /* 로그인 성공 후 1회 실행 */
-function startApp(){
+async function startApp(){
 showLoading('초기 데이터를 불러오는 중...');
+// 설정(학년도 · D-day · 테마)을 먼저 읽어야 학년도별 학교 목록을 만들 수 있음
+state.today = seoulToday();
+try { await loadSettings(); } catch (e) { toast('설정을 불러오지 못했습니다: ' + e.message, 'err'); }
+if (!settings.year) settings.year = schoolYearOf(state.today);
+applyTheme(settings.theme);
+applyYearLabels();
 
 google.script.run.withSuccessHandler(function(init){
 const today = init.today;
-state.today = today; state.date = today;
+state.today = today; state.date = yearDefaultDate(settings.year);
 state.schools = init.schools || [];
 
 document.getElementById('todayBadge').textContent = '오늘: ' + prettyLong(today);
@@ -1110,8 +1218,7 @@ document.getElementById('inDate').value = today;
 const wr = weekRangeMonFri(today);
 document.getElementById('ttStart').value = wr.start;
 document.getElementById('ttEnd').value = fmt(new Date(new Date(wr.end).getTime() + 7*24*3600*1000));
-document.getElementById('statStart').value = monthRange(today).start;
-document.getElementById('statEnd').value = monthRange(today).end;
+setStatRange();
 document.getElementById('holStart').value = today;
 document.getElementById('holEnd').value = today;
 
@@ -1119,9 +1226,13 @@ applySchools();
 
 // 오늘 일(day) 화면 즉시 렌더 (추가 서버 호출 없음)
 viewCache['day|' + today] = init.day;
+if (state.date === today){
 state.currentRecords = init.day.records || [];
 document.getElementById('centerTitle').textContent = prettyDay(today);
 renderDayGrid(init.day);
+} else {
+loadDay(); // 다른 학년도를 보고 있으면 그 학년도 첫날
+}
 
 // 오늘 할 일도 함께 받은 걸로 렌더
 renderTodos(init.todos || []);
@@ -1145,7 +1256,8 @@ document.querySelectorAll('.mode').forEach(function(m){
 m.addEventListener('click', function(){
 const mode = m.dataset.mode;
 document.querySelectorAll('.mode').forEach(function(x){ x.classList.toggle('active', x === m); });
-document.querySelectorAll('.tabs').forEach(function(x){ x.style.display = (x.dataset.mode === mode) ? '' : 'none'; });
+// 설정은 탭이 하나뿐이라 탭 줄을 숨김
+document.querySelectorAll('.tabs').forEach(function(x){ x.style.display = (x.dataset.mode === mode && mode !== 'set') ? '' : 'none'; });
 document.querySelector('.tabs[data-mode="'+mode+'"] .tab[data-view="'+state.modeView[mode]+'"]').click();
 });
 });
@@ -1164,6 +1276,7 @@ document.getElementById('etaskCard').style.display = (v==='etask') ? '' : 'none'
 document.getElementById('escoreCard').style.display = (v==='escore') ? '' : 'none';
 document.getElementById('esumCard').style.display = (v==='esum') ? '' : 'none';
 document.getElementById('estuCard').style.display = (v==='estu') ? '' : 'none';
+document.getElementById('setCard').style.display = (v==='settings') ? '' : 'none';
 // Todo는 일 뷰에서만
 document.getElementById('todoCard').style.display = (v==='day') ? '' : 'none';
 }
@@ -1207,6 +1320,84 @@ else if (v==='week') loadWeek();
 else if (v==='cal') loadCalendar();
 else if (v==='hol') loadHolidays();
 else if (['etask','escore','esum','estu'].indexOf(v)>=0) loadEval();
+else if (v==='settings') renderSettings();
+}
+
+/* ============== 설정 ============== */
+// 수업시수 기본 기간 : 지금 학년도면 이번 달, 다른 학년도면 학년도 전체
+function setStatRange(){
+const r = schoolYearOf(state.today) === settings.year ? monthRange(state.today) : yearRange(settings.year);
+document.getElementById('statStart').value = r.start;
+document.getElementById('statEnd').value = r.end;
+}
+// 고를 수 있는 학년도 : 자료가 있는 학년도 ~ 올해 다음 학년도
+async function settingYears(){
+const cur = schoolYearOf(state.today);
+const years = [cur - 1, cur, cur + 1, settings.year];
+try {
+const res = await Promise.all([
+fetchAll(function(){ return sb.from('eval_tasks').select('school_year').order('id'); }),
+fetchAll(function(){ return sb.from('eval_students').select('school_year').order('id'); }),
+sb.from('records').select('date').order('date', { ascending: true }).limit(1).then(must),
+sb.from('records').select('date').order('date', { ascending: false }).limit(1).then(must)
+]);
+res[0].concat(res[1]).forEach(function(r){ years.push(r.school_year); });
+res[2].concat(res[3]).forEach(function(r){ years.push(schoolYearOf(r.date)); });
+} catch (e) {}
+const lo = Math.min.apply(null, years), hi = Math.max.apply(null, years), out = [];
+for (let y = hi; y >= lo; y--) out.push(y);
+return out;
+}
+async function renderSettings(){
+const ySel = document.getElementById('setYear');
+ySel.innerHTML = opt(settings.year, settings.year + '학년도');
+settingYears().then(function(list){
+ySel.innerHTML = list.map(function(y){ return opt(y, y + '학년도'); }).join('');
+ySel.value = settings.year;
+});
+document.getElementById('setDdayLabel').value = (settings.dday || {}).label || '';
+document.getElementById('setDdayDate').value = (settings.dday || {}).date || '';
+document.getElementById('setThemes').innerHTML = THEMES.map(function(t){
+return '<button type="button" class="theme-opt' + (t.id === (settings.theme || 'violet') ? ' active' : '') + '" onclick="pickTheme(\'' + t.id + '\')">' +
+'<div class="sw" style="background:linear-gradient(135deg,' + t.colors.join(',') + ')"></div>' +
+'<div class="nm">' + esc(t.name) + '</div></button>';
+}).join('');
+}
+async function changeYear(){
+const sel = document.getElementById('setYear');
+const y = Number(sel.value);
+try { await saveSetting('school_year', y); }
+catch (e) { toast(e.message, 'err'); sel.value = settings.year; return; }
+settings.year = y;
+applyYearLabels();
+// 학년도가 바뀌면 학교 목록 · 화면 캐시 · 수행평가 자료를 모두 새로
+invalidateSchools();
+clearViewCache();
+closeTaskEditor();
+ev.schools = []; ev.school = '';
+state.date = yearDefaultDate(y);
+setStatRange();
+loadSchools();
+toast(y + '학년도 자료로 바꿨습니다.', 'ok');
+}
+async function saveDday(){
+const d = {
+label: document.getElementById('setDdayLabel').value.trim(),
+date: document.getElementById('setDdayDate').value
+};
+try { await saveSetting('dday', d); }
+catch (e) { toast(e.message, 'err'); return; }
+settings.dday = d;
+updateDday(state.today);
+toast('D-day를 저장했습니다.', 'ok');
+}
+async function pickTheme(id){
+const before = settings.theme;
+settings.theme = id;
+applyTheme(id);
+renderSettings();
+try { await saveSetting('theme', id); }
+catch (e) { toast(e.message, 'err'); settings.theme = before; applyTheme(before); renderSettings(); }
 }
 
 /* ============== 일 뷰 (그리드) ============== */
@@ -1691,8 +1882,11 @@ renderHolidays(list || []);
 }
 function renderHolidays(list){
 const box = document.getElementById('holList');
+// 선택한 학년도에 걸치는 휴일만 표시 (일 · 주 · 캘린더는 학년도와 상관없이 모든 휴일 반영)
+const yr = yearRange(settings.year);
+list = list.filter(function(h){ return h.end >= yr.start && h.start <= yr.end; });
 if (!list.length){
-box.innerHTML = '<div class="empty"><div class="big">등록된 휴일이 없습니다</div><div>위 폼에서 방학·공휴일을 등록하세요.</div></div>';
+box.innerHTML = '<div class="empty"><div class="big">' + settings.year + '학년도에 등록된 휴일이 없습니다</div><div>위 폼에서 방학·공휴일을 등록하세요.</div></div>';
 return;
 }
 let html = '<table><thead><tr><th>시작일</th><th>종료일</th><th>사유</th><th style="width:80px">동작</th></tr></thead><tbody>';
@@ -1779,7 +1973,7 @@ return '<tr>' +
 (groupBy==='school-class' ? '<td>' + esc(g.cls||'-') + '</td>' : '') +
 (groupBy==='school-day' ? '<td>' + esc(g.day||'-') + '요일</td>' : '') +
 '<td class="num"><b>'+g.count+'</b> 회</td>' +
-'<td><div style="background:#eef2ff; border-radius:6px; overflow:hidden; height:10px"><div style="width:'+pct+'%; height:100%; background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div></div></td>' +
+'<td><div style="background:var(--primary-soft); border-radius:6px; overflow:hidden; height:10px"><div style="width:'+pct+'%; height:100%; background:linear-gradient(90deg,var(--primary),var(--primary-2))"></div></div></td>' +
 '</tr>';
 }).join('');
 box.innerHTML = kpis + head + body + '</tbody></table>';
@@ -1839,8 +2033,8 @@ return t.items.reduce(function(s, i){ return s + evNum(i.max_score); }, 0);
 /* ---------- 데이터 불러오기 ---------- */
 async function loadEvalSchools(){
 const res = await Promise.all([
-fetchAll(function(){ return sb.from('eval_students').select('school').order('id'); }),
-fetchAll(function(){ return sb.from('eval_tasks').select('school').order('id'); }),
+fetchAll(function(){ return sb.from('eval_students').select('school').eq('school_year', settings.year).order('id'); }),
+fetchAll(function(){ return sb.from('eval_tasks').select('school').eq('school_year', settings.year).order('id'); }),
 loadSchoolList()
 ]);
 const set = {};
@@ -1882,9 +2076,9 @@ const s = ev.school;
 if (!s){ ev.students = []; ev.tasks = []; ev.scoreRows = []; return; }
 const res = await Promise.all([
 fetchAll(function(){
-return sb.from('eval_students').select('id,class_name,number,name,access_code').eq('school', s).order('id');
+return sb.from('eval_students').select('id,class_name,number,name,access_code').eq('school_year', settings.year).eq('school', s).order('id');
 }),
-sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school', s).order('id').then(must)
+sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school_year', settings.year).eq('school', s).order('id').then(must)
 ]);
 ev.students = res[0].sort(function(a, b){ return byClassName(a.class_name, b.class_name) || (a.number - b.number); });
 ev.tasks = res[1].map(normTask);
@@ -1997,6 +2191,11 @@ document.getElementById('cpMeta').textContent = ev.school + ' · ' + t.title;
 const sel = document.getElementById('cpSchool');
 sel.innerHTML = ev.schools.map(function(s){ return opt(s, s === ev.school ? s + ' (현재 학교)' : s); }).join('');
 sel.value = ev.school;
+const ySel = document.getElementById('cpYear');
+ySel.innerHTML = [settings.year + 1, settings.year, settings.year - 1].map(function(y){
+return opt(y, y + '학년도' + (y === settings.year ? ' (현재)' : ''));
+}).join('');
+ySel.value = settings.year;
 document.getElementById('copyModal').classList.add('show');
 }
 function closeCopyModal(){
@@ -2004,11 +2203,13 @@ document.getElementById('copyModal').classList.remove('show');
 }
 async function doCopyTask(){
 const target = document.getElementById('cpSchool').value;
+const year = Number(document.getElementById('cpYear').value);
+const here = target === ev.school && year === settings.year;
 try {
-must(await sb.rpc('copy_eval_task', { p_task_id: state.copyTask, p_school: target }));
+must(await sb.rpc('copy_eval_task', { p_task_id: state.copyTask, p_school: target, p_year: year }));
 closeCopyModal();
-toast((target === ev.school ? '복사본을 만들었습니다.' : target + '(으)로 복사했습니다.') + ' 복사본은 학생 비공개 상태입니다.', 'ok');
-if (target === ev.school) loadEval();
+toast((here ? '복사본을 만들었습니다.' : year + '학년도 ' + target + '(으)로 복사했습니다.') + ' 복사본은 학생 비공개 상태입니다.', 'ok');
+if (here) loadEval();
 } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -2131,6 +2332,7 @@ if (el) el.textContent = '총점 ' + evFmt(total) + '점';
 function etCollect(){
 return {
 id: ev.editing.id || null,
+school_year: settings.year,
 school: ev.school,
 title: document.getElementById('etTitle').value.trim(),
 target: document.getElementById('etTarget').value.trim(),
@@ -2486,13 +2688,13 @@ if (!line) return;
 const m = line.match(/^(\d+)[\s,]+(.+)$/);
 if (!m){ bad.push(line); return; }
 // 같은 번호가 두 번 나오면 마지막 줄 기준
-byNumber[m[1]] = { school: ev.school, class_name: cls, number: Number(m[1]), name: m[2].replace(/[\t,]+/g, ' ').trim() };
+byNumber[m[1]] = { school_year: settings.year, school: ev.school, class_name: cls, number: Number(m[1]), name: m[2].replace(/[\t,]+/g, ' ').trim() };
 });
 const rows = Object.keys(byNumber).map(function(k){ return byNumber[k]; });
 if (bad.length){ toast('형식이 맞지 않는 줄: ' + bad[0], 'err'); return; }
 if (!rows.length){ toast('번호와 이름을 입력하세요', 'err'); return; }
 try {
-must(await sb.from('eval_students').upsert(rows, { onConflict: 'school,class_name,number' }));
+must(await sb.from('eval_students').upsert(rows, { onConflict: 'school_year,school,class_name,number' }));
 toast(rows.length + '명 등록했습니다.', 'ok');
 document.getElementById('esPaste').value = '';
 await loadEvalData();
@@ -2528,7 +2730,7 @@ async function deleteClass(){
 const cls = document.getElementById('esClass').value;
 if (!confirm(ev.school + ' ' + cls + ' 학생 ' + evStudentsOf(cls).length + '명을 모두 삭제하시겠습니까?\n입력된 점수도 함께 삭제됩니다.')) return;
 try {
-must(await sb.from('eval_students').delete().eq('school', ev.school).eq('class_name', cls));
+must(await sb.from('eval_students').delete().eq('school_year', settings.year).eq('school', ev.school).eq('class_name', cls));
 toast('삭제되었습니다.', 'ok');
 await loadEvalData();
 renderStudentView();
