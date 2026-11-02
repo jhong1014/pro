@@ -386,6 +386,10 @@ background:#fffbeb; border:1px solid #fde68a; border-radius:10px; font-size:13px
 .theme-opt.active{border-color:var(--primary); box-shadow:0 0 0 3px rgba(var(--primary-rgb),.18)}
 .theme-opt .sw{height:42px; border-radius:8px; margin-bottom:6px}
 .theme-opt .nm{font-weight:700; font-size:13px}
+/* 성적 확인 서명 */
+.sg-img{height:34px; max-width:110px; display:block; background:#fff; border:1px solid var(--border); border-radius:6px}
+.sg-ok{color:var(--ok); font-weight:700}
+.sg-stale{color:var(--warn); font-weight:700}
 /* 모바일 반응형 */
 @media (max-width: 780px){
 body{padding:12px}
@@ -459,6 +463,7 @@ body{padding:12px}
 <div class="tab" data-view="etask">평가 기준</div>
 <div class="tab" data-view="escore">점수 입력</div>
 <div class="tab" data-view="esum">과제별 합계</div>
+<div class="tab" data-view="esign">서명 확인</div>
 <div class="tab" data-view="estu">학생 명단</div>
 </div>
 <div class="tabs" data-mode="set" style="display:none">
@@ -512,6 +517,14 @@ body{padding:12px}
 <label class="field">반<select id="smClass" onchange="renderSummaryTable()"></select></label>
 </div>
 <div id="smBody" style="margin-top:12px"></div>
+</div>
+<!-- 수행평가 : 성적 확인 서명 -->
+<div id="esignCard" class="card" style="display:none">
+<h2>성적 확인 서명</h2>
+<div class="row">
+<label class="field">반<select id="sgClass" onchange="renderSignTable()"></select></label>
+</div>
+<div id="sgBody" style="margin-top:12px"></div>
 </div>
 <!-- 수행평가 : 학생 명단 -->
 <div id="estuCard" class="card" style="display:none">
@@ -1271,10 +1284,11 @@ document.getElementById('ttCard').style.display = (v==='tt') ? '' : 'none';
 document.getElementById('statCard').style.display = (v==='stat')? '' : 'none';
 document.getElementById('addCard').style.display = (v==='add') ? '' : 'none';
 document.getElementById('holCard').style.display = (v==='hol') ? '' : 'none';
-document.getElementById('evalBar').style.display = (['etask','escore','esum','estu'].indexOf(v)>=0) ? '' : 'none';
+document.getElementById('evalBar').style.display = (['etask','escore','esum','esign','estu'].indexOf(v)>=0) ? '' : 'none';
 document.getElementById('etaskCard').style.display = (v==='etask') ? '' : 'none';
 document.getElementById('escoreCard').style.display = (v==='escore') ? '' : 'none';
 document.getElementById('esumCard').style.display = (v==='esum') ? '' : 'none';
+document.getElementById('esignCard').style.display = (v==='esign') ? '' : 'none';
 document.getElementById('estuCard').style.display = (v==='estu') ? '' : 'none';
 document.getElementById('setCard').style.display = (v==='settings') ? '' : 'none';
 // Todo는 일 뷰에서만
@@ -1319,7 +1333,7 @@ if (v==='day') { loadDay(); loadTodos(); }
 else if (v==='week') loadWeek();
 else if (v==='cal') loadCalendar();
 else if (v==='hol') loadHolidays();
-else if (['etask','escore','esum','estu'].indexOf(v)>=0) loadEval();
+else if (['etask','escore','esum','esign','estu'].indexOf(v)>=0) loadEval();
 else if (v==='settings') renderSettings();
 }
 
@@ -2090,12 +2104,13 @@ return sb.from('eval_scores').select('id,student_id,item_id,level_id').in('item_
 }
 async function loadEval(){
 const v = state.view;
-const box = { etask: 'etList', escore: 'scBody', esum: 'smBody', estu: 'esList' }[v];
+const box = { etask: 'etList', escore: 'scBody', esum: 'smBody', esign: 'sgBody', estu: 'esList' }[v];
 if (!(v === 'etask' && ev.editing))
 document.getElementById(box).innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>';
 try {
 if (!ev.schools.length) await loadEvalSchools();
 await loadEvalData();
+if (v === 'esign') await loadSignatures();
 } catch (e) {
 toast(e.message, 'err');
 document.getElementById(box).innerHTML = '<div class="empty"><div class="big">불러오기 실패</div><div>'+esc(e.message)+'</div></div>';
@@ -2105,6 +2120,7 @@ if (state.view !== v) return;
 if (v === 'etask') renderTaskView();
 else if (v === 'escore') renderScoreView();
 else if (v === 'esum') renderSummaryView();
+else if (v === 'esign') renderSignView();
 else renderStudentView();
 }
 
@@ -2645,6 +2661,110 @@ lines.push((cls ? [] : [r.student.class_name]).concat([r.student.number, r.stude
 r.cells.map(function(c){ return c.value; })).map(csvCell).join(','));
 });
 saveCsv(lines, ev.school + '_' + (cls || '전체') + '_과제별합계.csv');
+}
+
+/* ============== 성적 확인 서명 ==============
+   eval_signature_list(학년도, 학교) : 학생마다 현재 성적(current), 서명할 때 성적(snapshot),
+   서명 그림 · 일시, 서명 뒤 점수가 바뀌었는지(matches) */
+async function loadSignatures(){
+ev.signs = ev.school ? must(await sb.rpc('eval_signature_list', { p_year: settings.year, p_school: ev.school })) : [];
+}
+function renderSignView(){
+const sel = document.getElementById('sgClass');
+const prev = sel.value;
+const classes = evClasses();
+sel.innerHTML = classes.length ? '<option value="">전체 반</option>' + classes.map(function(c){ return opt(c); }).join('')
+: '<option value="">(학생 명단 없음)</option>';
+if (classes.indexOf(prev) >= 0) sel.value = prev;
+renderSignTable();
+}
+function seoulTime(iso){ return iso ? seoulDateTime(iso) : ''; }
+// 학생 공개 과제만 (학생이 확인 · 서명하는 대상)
+function signTasks(){ return ev.tasks.filter(function(t){ return t.published; }); }
+function signRows(){
+const cls = document.getElementById('sgClass').value;
+return (ev.signs || []).filter(function(r){ return !cls || r.class_name === cls; })
+.sort(function(a, b){ return byClassName(a.class_name, b.class_name) || (a.number - b.number); })
+.map(function(r){
+const status = !r.signed_at ? 'none' : (r.matches ? 'ok' : 'stale');
+// 서명이 유효하면 학생이 확인한 성적(snapshot), 아니면 현재 성적
+const src = status === 'ok' ? r.snapshot : r.current;
+const byTask = {};
+(src || []).forEach(function(t){ byTask[t.id] = t; });
+return { r: r, status: status, cells: signTasks().map(function(t){ return byTask[t.id] ? evFmt(byTask[t.id].total) : ''; }) };
+});
+}
+const SIGN_STATUS = { ok: '<span class="sg-ok">서명 완료</span>', stale: '<span class="sg-stale">재확인 필요</span>', none: '<span class="muted">미서명</span>' };
+function renderSignTable(){
+const box = document.getElementById('sgBody');
+const all = !document.getElementById('sgClass').value;
+if (!ev.school){ box.innerHTML = '<div class="empty"><div class="big">학교를 먼저 선택하세요</div></div>'; return; }
+if (!ev.students.length){ box.innerHTML = '<div class="empty"><div class="big">학생 명단이 없습니다</div></div>'; return; }
+const tasks = signTasks();
+const rows = signRows();
+const cnt = { ok: 0, stale: 0, none: 0 };
+rows.forEach(function(x){ cnt[x.status]++; });
+let html = '<div class="flex" style="margin-bottom:10px; align-items:center; justify-content:space-between">' +
+'<div style="font-size:13px">서명 완료 <b>' + cnt.ok + '</b> · 재확인 필요 <b>' + cnt.stale + '</b> · 미서명 <b>' + cnt.none + '</b> / ' + rows.length + '명</div>' +
+'<button class="btn sm" onclick="printSignatures()">서명 자료 인쇄</button></div>';
+if (!tasks.length) html += '<div class="ev-notice"><span>학생에게 공개된 평가가 없어 학생이 서명할 수 없습니다. [평가 기준]에서 공개해 주세요.</span></div>';
+html += '<div class="ev-scroll"><table class="ev-score"><thead><tr>' + (all ? '<th>반</th>' : '') + '<th class="num">번호</th><th>이름</th>' +
+tasks.map(function(t){ return '<th class="num" style="white-space:normal; min-width:80px">' + esc(t.title) + '<small>' + evFmt(taskMax(t)) + '점</small></th>'; }).join('') +
+'<th>상태</th><th>서명일시</th><th>서명</th><th></th></tr></thead><tbody>';
+rows.forEach(function(x){
+const r = x.r;
+html += '<tr>' + (all ? '<td>' + esc(r.class_name) + '</td>' : '') + '<td class="num">' + r.number + '</td><td>' + esc(r.name) + '</td>' +
+x.cells.map(function(c){ return '<td class="num">' + (c || '<span class="muted">-</span>') + '</td>'; }).join('') +
+'<td>' + SIGN_STATUS[x.status] + '</td><td style="font-size:12px">' + esc(seoulTime(r.signed_at)) + '</td>' +
+'<td>' + (r.signature ? '<img class="sg-img" src="' + esc(r.signature) + '" alt="서명"/>' : '') + '</td>' +
+'<td>' + (r.signed_at ? '<button class="btn ghost sm" onclick="deleteSignature(' + r.student_id + ')">서명 지우기</button>' : '') + '</td></tr>';
+});
+html += '</tbody></table></div>' +
+'<div class="hint">서명 뒤 점수가 바뀌면 "재확인 필요"로 표시되고, 학생 화면에서 다시 서명하도록 안내됩니다.</div>';
+box.innerHTML = html;
+}
+async function deleteSignature(studentId){
+if (!confirm('이 학생의 서명을 지우시겠습니까? 학생이 다시 서명해야 합니다.')) return;
+try {
+must(await sb.from('eval_signatures').delete().eq('student_id', studentId));
+toast('서명을 지웠습니다.', 'ok');
+await loadSignatures();
+renderSignTable();
+} catch (e) { toast(e.message, 'err'); }
+}
+/* 반마다 한 쪽씩 : 번호 · 이름 · 영역(과제)별 성적 · 서명일시 · 서명 */
+function printSignatures(){
+const tasks = signTasks();
+const rows = signRows();
+const w = window.open('', '_blank');
+if (!w){ toast('팝업이 차단되었습니다.', 'err'); return; }
+const groups = {};
+rows.forEach(function(x){ (groups[x.r.class_name] = groups[x.r.class_name] || []).push(x); });
+const printed = seoulDateTime(new Date().toISOString());
+const pages = Object.keys(groups).sort(byClassName).map(function(cls){
+return '<section><h1>' + settings.year + '학년도 ' + esc(ev.school) + ' ' + esc(cls) + ' 수행평가 성적 확인서</h1>' +
+'<div class="meta">출력 ' + esc(printed) + '</div>' +
+'<table><thead><tr><th>번호</th><th>이름</th>' +
+tasks.map(function(t){ return '<th style="min-width:80px">' + esc(t.title) + '<br><small>(' + evFmt(taskMax(t)) + '점)</small></th>'; }).join('') +
+'<th>서명일시</th><th>서명</th><th>비고</th></tr></thead><tbody>' +
+groups[cls].map(function(x){
+return '<tr><td>' + x.r.number + '</td><td>' + esc(x.r.name) + '</td>' +
+x.cells.map(function(c){ return '<td>' + (c || '') + '</td>'; }).join('') +
+'<td class="t">' + (x.status === 'ok' ? esc(seoulTime(x.r.signed_at)) : '') + '</td>' +
+'<td class="s">' + (x.status === 'ok' ? '<img src="' + esc(x.r.signature) + '" alt="서명"/>' : '') + '</td>' +
+'<td>' + (x.status === 'stale' ? '점수 변경 후 미확인' : x.status === 'none' ? '미서명' : '') + '</td></tr>';
+}).join('') + '</tbody></table></section>';
+}).join('');
+w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>성적 확인서 ' + esc(ev.school) + '</title>' +
+'<style>@page{size:A4 landscape;margin:12mm}body{font-family:sans-serif;margin:0;color:#000}' +
+'section{page-break-after:always}section:last-child{page-break-after:auto}' +
+'h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#555;margin-bottom:8px}' +
+'table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #333;padding:4px 6px;text-align:center}' +
+'th{background:#f1f5f9}th small{font-weight:400}td.t{font-size:11px;white-space:nowrap}td.s{width:120px;height:38px;padding:2px}' +
+'td.s img{max-height:34px;max-width:116px}tr{page-break-inside:avoid}' +
+'td:nth-child(-n+2),td:last-child,th:nth-child(-n+2),th:last-child{white-space:nowrap}</style></head><body>' +
+(pages || '<p>학생이 없습니다.</p>') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
+w.document.close();
 }
 
 /* ============== 학생 명단 ============== */

@@ -87,6 +87,16 @@ font-size:14px; line-height:1.45; color:#475569; background:#fff;
 .lv .sc{text-align:right; font-variant-numeric:tabular-nums}
 .lv.sel{background:#eef2ff; border-color:#a5b4fc; color:var(--fg); font-weight:700}
 .lv.sel .mark{color:var(--primary)}
+/* 성적 확인 서명 */
+.chk{display:flex; gap:8px; align-items:flex-start; font-size:15px; font-weight:600; margin:6px 0 10px; cursor:pointer}
+.chk input{width:20px; height:20px; margin:0; flex-shrink:0; width:auto}
+.pad-wrap{position:relative; border:2px dashed var(--border-strong); border-radius:12px; background:#fff}
+.pad-wrap canvas{display:block; width:100%; height:170px; touch-action:none; cursor:crosshair}
+.pad-hint{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:15px; pointer-events:none}
+.btn.ghost{background:#fff; color:#334155; border:1px solid var(--border); box-shadow:none}
+.signed{color:var(--ok); font-weight:700; font-size:15px}
+.sig-view{display:block; max-width:240px; max-height:90px; margin-top:8px; border:1px solid var(--border); border-radius:8px; background:#fff}
+.notice{background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:10px 12px; font-size:14px; margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -150,21 +160,25 @@ if (res.error){ showErr('반 목록을 불러오지 못했습니다.'); return; 
 sel.innerHTML = '<option value="">선택</option>' + options(texts(res.data));
 }
 
+// 조회에 쓴 학교 · 반 · 번호 · 확인코드 (서명 제출 때 다시 확인용, 화면을 닫으면 사라짐)
+let cred = null;
 async function lookup(ev){
 ev.preventDefault();
 showErr('');
 const btn = document.getElementById('goBtn');
 btn.disabled = true;
-const res = await sb.rpc('student_eval_view', {
+const c = {
 p_school: document.getElementById('school').value,
 p_class: document.getElementById('cls').value,
 p_number: Number(document.getElementById('num').value),
 p_code: document.getElementById('code').value.trim()
-});
+};
+const res = await sb.rpc('student_eval_view', c);
 btn.disabled = false;
 if (res.error){ showErr('조회 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.'); return; }
 if (res.data.error){ showErr(res.data.error); return; }
 document.getElementById('code').value = '';
+cred = c;
 render(res.data);
 }
 
@@ -203,10 +217,100 @@ return '<div class="lv' + (l.selected ? ' sel' : '') + '"><span class="mark">' +
 }).join('') + '</div>';
 });
 return html + '</div>';
-}).join('');
+}).join('') + signCard(d.signature);
+setupPad();
+}
+
+/* ---------- 성적 확인 서명 ---------- */
+function seoulTime(iso){
+return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
+function signCard(sig){
+let html = '<div class="card" id="signCard"><h2 style="margin-bottom:8px">성적 확인</h2>';
+if (sig && sig.matches){
+return html + '<div class="signed">✔ ' + esc(seoulTime(sig.signed_at)) + ' 확인 · 서명 완료</div>' +
+'<img class="sig-view" src="' + esc(sig.signature) + '" alt="내 서명"/></div>';
+}
+if (sig) html += '<div class="notice">서명한 뒤 점수가 바뀌었습니다. 위 성적을 다시 확인하고 서명해 주세요.</div>';
+return html +
+'<label class="chk"><input type="checkbox" id="agree" onchange="updateSignBtn()"/><span>위 성적을 모두 확인했으며 이상 없습니다.</span></label>' +
+'<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-hint" id="padHint">여기에 손가락으로 서명하세요</div></div>' +
+'<button type="button" class="btn ghost" onclick="clearPad()">서명 지우기</button>' +
+'<button type="button" class="btn" id="signBtn" disabled onclick="submitSign()">확인 제출</button>' +
+'<div class="err" id="signErr"></div>' +
+'<div class="muted" style="font-size:13px">성적에 이상이 있으면 서명하지 말고 선생님께 말씀하세요.</div></div>';
+}
+let pad = null;
+function setupPad(){
+const cv = document.getElementById('pad');
+if (!cv){ pad = null; return; }
+const ratio = window.devicePixelRatio || 1;
+cv.width = cv.clientWidth * ratio;
+cv.height = cv.clientHeight * ratio;
+const g = cv.getContext('2d');
+g.scale(ratio, ratio);
+g.lineWidth = 2.5; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#0f172a';
+pad = { cv: cv, g: g, drawing: false, strokes: 0 };
+function pos(e){ const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('pointerdown', function(e){
+e.preventDefault();
+cv.setPointerCapture(e.pointerId);
+pad.drawing = true;
+const p = pos(e);
+g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + 0.1, p.y + 0.1); g.stroke();
+});
+cv.addEventListener('pointermove', function(e){
+if (!pad.drawing) return;
+const p = pos(e);
+g.lineTo(p.x, p.y); g.stroke();
+});
+function end(){
+if (!pad.drawing) return;
+pad.drawing = false;
+pad.strokes++;
+document.getElementById('padHint').style.display = 'none';
+updateSignBtn();
+}
+cv.addEventListener('pointerup', end);
+cv.addEventListener('pointercancel', end);
+cv.addEventListener('pointerleave', end);
+}
+function clearPad(){
+if (!pad) return;
+pad.g.clearRect(0, 0, pad.cv.width, pad.cv.height);
+pad.strokes = 0;
+document.getElementById('padHint').style.display = '';
+updateSignBtn();
+}
+function updateSignBtn(){
+document.getElementById('signBtn').disabled = !(document.getElementById('agree').checked && pad && pad.strokes > 0);
+}
+// 저장 용량을 줄이려고 가로 400px로 줄여서 PNG로 보냄
+function padImage(){
+const out = document.createElement('canvas');
+out.width = 400;
+out.height = Math.round(400 * pad.cv.height / pad.cv.width);
+out.getContext('2d').drawImage(pad.cv, 0, 0, out.width, out.height);
+return out.toDataURL('image/png');
+}
+async function submitSign(){
+const btn = document.getElementById('signBtn');
+const err = document.getElementById('signErr');
+err.textContent = '';
+btn.disabled = true;
+const res = await sb.rpc('student_eval_sign', Object.assign({ p_signature: padImage() }, cred));
+if (res.error || res.data.error){
+err.textContent = res.error ? '제출 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.' : res.data.error;
+btn.disabled = false;
+return;
+}
+render(res.data);
+document.getElementById('signCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function logout(){
+cred = null;
 document.getElementById('result').innerHTML = '';
 document.getElementById('loginCard').style.display = '';
 document.getElementById('outBtn').style.display = 'none';

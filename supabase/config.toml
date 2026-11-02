@@ -1,0 +1,4 @@
+# Supabase GitHub 연동 설정
+# - main 브랜치에 합쳐지면 supabase/migrations 안의 새 마이그레이션만 운영 DB에 적용됩니다.
+# - 그 밖의 설정(Auth · API 등)은 운영 프로젝트에 적용되지 않습니다.
+project_id = "pro"
