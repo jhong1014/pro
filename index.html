@@ -367,7 +367,7 @@ padding:7px 13px; border-radius:999px; font-weight:600; font-size:13px; cursor:p
 }
 .logout-btn:hover{background:rgba(255,255,255,.28)}
 /* 진도 / 수행평가 전환 */
-.modes{display:flex; gap:6px; margin-top:14px}
+.modes{display:flex; gap:6px; margin-top:14px; margin-bottom:14px; flex-wrap:wrap}
 .mode{
 padding:8px 16px; border-radius:999px; cursor:pointer; font-weight:700; font-size:14px;
 color:#475569; background:#fff; border:1px solid var(--border); box-shadow:var(--shadow);
@@ -509,6 +509,21 @@ display:flex; flex-direction:column; align-items:center; justify-content:center;
 .pbar i{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--primary), var(--primary-2))}
 .dash-msg{padding:16px 12px; text-align:center; color:var(--muted); font-size:13px; background:#f8fafc; border-radius:10px}
 .dash-msg .btn{margin-top:8px}
+/* 대시보드 : 학교 메모 */
+.memo-bar{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px}
+.memo-bar select{font-size:12px; padding:5px 8px; border-radius:999px}
+.pill-tabs.memo button.active{background:var(--primary); border-color:var(--primary)}
+.pill-tabs.memo button small{font-weight:500; opacity:.8; margin-left:3px}
+.memo-item{display:flex; gap:8px; align-items:flex-start; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#fffdf5; margin-bottom:6px}
+.memo-item .memo-text{flex:1; min-width:0; font-size:14px; line-height:1.5; white-space:pre-wrap; word-break:break-all}
+.memo-item .memo-time{font-size:11px; color:var(--muted); margin-top:2px}
+.memo-item .memo-acts{display:flex; gap:2px; flex-shrink:0}
+.memo-item .memo-acts button{background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:13px; padding:4px 6px; border-radius:6px; font-family:inherit}
+.memo-item .memo-acts button:hover{background:#f1f5f9; color:#334155}
+.memo-item .memo-acts button.btn{background:var(--primary); color:#fff; padding:6px 10px}
+.memo-item textarea{flex:1; min-width:0}
+.memo-add{display:flex; gap:6px; margin-top:8px; align-items:flex-end}
+.memo-add textarea{flex:1; min-width:0; resize:vertical}
 /* 설정 : 나이스 연동 */
 .neis-search{margin-top:8px; padding:10px; border:1px dashed var(--border-strong); border-radius:10px; background:#fafbff}
 .neis-result{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:13px}
@@ -645,6 +660,18 @@ body{padding:12px}
 </div>
 </div>
 <div class="dash-row2">
+<div class="card">
+<div class="dash-head"><h2>학교 메모</h2><span class="muted" style="font-size:12px" id="memoHint"></span></div>
+<div class="memo-bar">
+<div class="pill-tabs memo" id="memoTabs" style="margin:0"></div>
+<select id="memoOther" onchange="memoPickOther(this.value)" aria-label="다른 학교 메모 보기"></select>
+</div>
+<div id="memoList"></div>
+<div class="memo-add">
+<textarea id="memoText" rows="2" placeholder="예: 교무실 내선 번호, 와이파이, 수업 교실, 주차 위치" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))addMemo()"></textarea>
+<button class="btn" onclick="addMemo()">추가</button>
+</div>
+</div>
 <div class="card">
 <div class="dash-head"><h2>오늘의 할 일 <span class="badge" id="dashTodoCount">0</span></h2></div>
 <div class="todo-input">
@@ -3507,6 +3534,7 @@ dashLoadWeek();
 dashLoadCalendar();
 dashLoadSchedule();
 dashLoadEval();
+dashLoadMemos();
 }
 function dashMoveWeek(dir){
 dash.week = dir === 0 ? dashThisWeek() : addDays(dash.week, 7 * dir);
@@ -3560,6 +3588,8 @@ html += schools.map(function(s){ return '<div class="dash-school"><i style="back
 }
 box.innerHTML = html;
 dashTick();
+if (!memo.school || memo.todaySchools.indexOf(memo.school) >= 0 || !memo.todaySchools.length) memo.school = memoTodaySchools()[0] || memo.school;
+renderMemos();
 }
 
 /* ----- 시계 : 1초마다 ----- */
@@ -3851,6 +3881,130 @@ return '<li>' + esc(x.name) + (x.allergy ? '<span class="al">' + esc(x.allergy) 
 }).join('') + '</ul>' + (meal.cal ? '<div class="kcal">' + esc(meal.cal) + '</div>' : '');
 return '<div class="meal-day' + (d.ds === state.today ? ' today' : '') + '">' + head + body + '</div>';
 }).join('') + '</div></div>';
+}
+
+/* ----- 학교 메모 (school_memos) -----
+   기본 : 오늘 근무학교의 메모. 다른 학교는 목록에서 골라 보거나 새로 입력 */
+const memo = { list: null, school: '', editing: 0, todaySchools: [] };
+async function dashLoadMemos(){
+try {
+memo.list = must(await sb.from('school_memos').select('*').order('created_at'));
+} catch (e) {
+memo.list = null;
+document.getElementById('memoList').innerHTML = dashErr(e);
+return;
+}
+renderMemos();
+}
+// 오늘 근무학교 (수업이 많은 순)
+function memoTodaySchools(){
+const res = dash.todayRes;
+if (!res || res.holiday) return [];
+const cnt = {};
+(res.records || []).forEach(function(r){ if (r.school) cnt[r.school] = (cnt[r.school] || 0) + 1; });
+return Object.keys(cnt).sort(function(a, b){ return cnt[b] - cnt[a]; });
+}
+function memoAllSchools(){
+const set = {};
+state.schools.forEach(function(s){ set[s] = true; });
+(memo.list || []).forEach(function(m){ set[m.school] = true; });
+if (memo.school) set[memo.school] = true;
+return Object.keys(set).sort();
+}
+function memoCount(school){
+return (memo.list || []).filter(function(m){ return m.school === school; }).length;
+}
+function renderMemos(){
+if (!memo.list) return;
+const today = memoTodaySchools();
+memo.todaySchools = today;
+if (!memo.school){
+let saved = '';
+try { saved = localStorage.getItem('memoSchool') || ''; } catch (e) {}
+memo.school = today[0] || (memoAllSchools().indexOf(saved) >= 0 ? saved : memoAllSchools()[0] || '');
+}
+// 탭 : 오늘 근무학교 + 지금 보고 있는 학교
+const tabs = today.slice();
+if (memo.school && tabs.indexOf(memo.school) < 0) tabs.push(memo.school);
+document.getElementById('memoTabs').innerHTML = tabs.map(function(sc, i){
+return '<button type="button" class="' + (sc === memo.school ? 'active' : '') + '" onclick="memoPickTab(' + i + ')">' + esc(sc) +
+(today.indexOf(sc) >= 0 ? '<small>오늘</small>' : '') + (memoCount(sc) ? '<small>' + memoCount(sc) + '</small>' : '') + '</button>';
+}).join('');
+memo.tabs = tabs;
+const others = memoAllSchools();
+memo.others = others;
+document.getElementById('memoOther').innerHTML = '<option value="">다른 학교 보기…</option>' +
+others.map(function(sc, i){ return '<option value="' + i + '">' + esc(sc) + (memoCount(sc) ? ' (' + memoCount(sc) + ')' : '') + '</option>'; }).join('') +
+'<option value="__new">＋ 새 학교 입력…</option>';
+document.getElementById('memoHint').textContent = today.length ? (today.indexOf(memo.school) >= 0 ? '오늘 근무학교 메모' : '') : '오늘은 근무학교가 없습니다';
+const box = document.getElementById('memoList');
+if (!memo.school){
+box.innerHTML = dashMsg('학교가 없습니다. "다른 학교 보기 › 새 학교 입력"으로 학교를 정하세요.');
+return;
+}
+const items = (memo.list || []).filter(function(m){ return m.school === memo.school; });
+document.getElementById('memoText').placeholder = memo.school + ' 메모 (예: 교무실 내선 번호, 와이파이, 수업 교실, 주차 위치)';
+if (!items.length){ box.innerHTML = dashMsg(esc(memo.school) + ' 메모가 없습니다. 아래에 적고 추가하세요.'); return; }
+box.innerHTML = items.map(function(m){
+if (memo.editing === m.id){
+return '<div class="memo-item"><textarea id="memoEdit" rows="3">' + esc(m.content) + '</textarea>' +
+'<div class="memo-acts" style="flex-direction:column"><button class="btn sm" onclick="saveMemo(' + m.id + ')">저장</button>' +
+'<button onclick="editMemo(0)">취소</button></div></div>';
+}
+return '<div class="memo-item"><div style="flex:1; min-width:0"><div class="memo-text">' + esc(m.content) + '</div>' +
+'<div class="memo-time">' + esc(seoulDateTime(m.updated_at || m.created_at)) + '</div></div>' +
+'<div class="memo-acts"><button title="수정" onclick="editMemo(' + m.id + ')">수정</button><button title="삭제" onclick="deleteMemo(' + m.id + ')">✕</button></div></div>';
+}).join('');
+}
+function memoSetSchool(sc){
+memo.school = sc; memo.editing = 0;
+try { localStorage.setItem('memoSchool', sc); } catch (e) {}
+renderMemos();
+}
+function memoPickTab(i){ memoSetSchool(memo.tabs[i]); }
+function memoPickOther(v){
+const sel = document.getElementById('memoOther');
+sel.value = '';
+if (v === '') return;
+if (v === '__new'){
+const name = (prompt('메모를 남길 학교 이름을 입력하세요') || '').trim();
+if (name) memoSetSchool(name);
+return;
+}
+memoSetSchool(memo.others[Number(v)]);
+}
+async function addMemo(){
+const el = document.getElementById('memoText');
+const text = el.value.trim();
+if (!memo.school){ toast('학교를 먼저 고르세요.', 'err'); return; }
+if (!text){ toast('메모 내용을 입력하세요.', 'err'); return; }
+try { must(await sb.from('school_memos').insert({ school: memo.school, content: text })); }
+catch (e) { toast(e.message, 'err'); return; }
+el.value = '';
+toast(memo.school + ' 메모를 추가했습니다.', 'ok');
+dashLoadMemos();
+}
+function editMemo(id){
+memo.editing = id;
+renderMemos();
+const el = document.getElementById('memoEdit');
+if (el) el.focus();
+}
+async function saveMemo(id){
+const text = (document.getElementById('memoEdit').value || '').trim();
+if (!text){ toast('메모 내용을 입력하세요.', 'err'); return; }
+try { must(await sb.from('school_memos').update({ content: text, updated_at: new Date().toISOString() }).eq('id', id)); }
+catch (e) { toast(e.message, 'err'); return; }
+memo.editing = 0;
+toast('수정했습니다.', 'ok');
+dashLoadMemos();
+}
+async function deleteMemo(id){
+if (!confirm('이 메모를 삭제할까요?')) return;
+try { must(await sb.from('school_memos').delete().eq('id', id)); }
+catch (e) { toast(e.message, 'err'); return; }
+toast('삭제했습니다.', 'ok');
+dashLoadMemos();
 }
 
 /* ----- 수행평가 현황 : 과제별 채점 진행률 · 서명 미확인 ----- */
