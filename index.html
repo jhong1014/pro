@@ -120,7 +120,7 @@ transition:.15s; flex-shrink:0;
 font-size:17px; font-weight:700; padding:0 10px;
 min-width:140px; text-align:center;
 }
-input[type=date], input[type=text], input[type=number], input[type=email], input[type=password], select, textarea{
+input[type=date], input[type=time], input[type=text], input[type=number], input[type=email], input[type=password], select, textarea{
 border:1px solid var(--border); background:#fff; border-radius:10px;
 padding:8px 10px; font-size:14px; color:var(--fg); outline:none;
 transition:.15s;
@@ -390,6 +390,96 @@ background:#fffbeb; border:1px solid #fde68a; border-radius:10px; font-size:13px
 .sg-img{height:34px; max-width:110px; display:block; background:#fff; border:1px solid var(--border); border-radius:6px}
 .sg-ok{color:var(--ok); font-weight:700}
 .sg-stale{color:var(--warn); font-weight:700}
+/* 대시보드 */
+.dash-top{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-bottom:14px}
+.dash-top > .card, .dash-row > .card, .dash-row2 > .card{margin-bottom:0}
+.dash-label{font-size:13px; font-weight:700; color:var(--muted); margin-bottom:10px}
+.dash-school{display:flex; align-items:center; gap:10px; font-size:24px; font-weight:800; letter-spacing:-.3px; flex-wrap:wrap}
+.dash-school i{width:12px; height:12px; border-radius:4px; flex-shrink:0}
+.dash-kpis{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px}
+.dash-kpi{background:#f8fafc; border-radius:10px; padding:10px 12px; min-width:0}
+.dash-kpi .l{font-size:12px; color:var(--muted)}
+.dash-kpi .v{font-size:17px; font-weight:800; margin-top:2px; word-break:keep-all}
+.dash-next{border-top:1px solid var(--border); margin-top:12px; padding-top:10px; font-size:14px}
+.dash-next .l{font-size:12px; color:var(--muted)}
+.dash-clock{background:linear-gradient(135deg, var(--primary), var(--primary-2)); color:#fff; border:none}
+.dash-clock .dash-label{color:rgba(255,255,255,.85)}
+.dash-time{font-size:54px; font-weight:800; line-height:1; letter-spacing:-1px; font-variant-numeric:tabular-nums}
+.dash-time small{font-size:24px; opacity:.8; margin-left:6px}
+.dash-date{margin-top:8px; font-size:14px; opacity:.92}
+.dash-status{margin-top:14px; background:rgba(255,255,255,.16); border-radius:10px; padding:10px 12px; font-size:14px}
+.dash-bar{height:6px; border-radius:999px; background:rgba(255,255,255,.25); overflow:hidden; margin:8px 0 6px}
+.dash-bar i{display:block; height:100%; width:0; background:#fff; border-radius:999px; transition:width .5s}
+.dash-sub{font-size:12px; opacity:.88}
+.dash-cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
+.dash-cal-head .dash-label{margin:0}
+.dash-cal-head .nav button{width:30px; height:30px; font-size:14px}
+.mcal{display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; text-align:center}
+.mcal .dw{font-size:11px; font-weight:700; color:var(--muted); padding:2px 0}
+.mcal .dw.sun{color:#dc2626} .mcal .dw.sat{color:#2563eb}
+.mcal button{border:0; background:transparent; height:36px; border-radius:8px; cursor:pointer; font:inherit;
+display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0; color:var(--fg)}
+.mcal button:hover{background:#f1f5f9}
+.mcal button.wk{background:var(--primary-soft)}
+.mcal .n{font-size:12px; width:22px; height:22px; line-height:20px; border-radius:50%; border:1px solid transparent}
+.mcal .out .n{color:#cbd5e1}
+.mcal .sat .n{color:#2563eb}
+.mcal .sun .n, .mcal .hol .n{color:#dc2626; font-weight:700}
+.mcal .ev .n{border:2px solid #0f766e; line-height:18px}
+.mcal .today .n{background:var(--primary); color:#fff; font-weight:800; border-color:var(--primary)}
+.mcal .dots{display:flex; gap:2px; height:5px}
+.mcal .dots i{width:5px; height:5px; border-radius:50%}
+.dash-legend{display:flex; flex-wrap:wrap; gap:10px; font-size:11px; color:var(--muted); margin-top:8px}
+.dash-legend span{display:inline-flex; align-items:center; gap:4px}
+.dash-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+.dash-head h2{margin:0}
+.dash-head .muted{font-size:13px; font-weight:500}
+.dash-week{overflow-x:auto}
+.dash-week .week-grid{min-width:640px}
+.wg-item .wg-time{font-size:10px; opacity:.75; font-variant-numeric:tabular-nums}
+.wg-item .wg-prog{font-size:11px; opacity:.9; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-all}
+.wg-item .wg-top{display:flex; justify-content:space-between; align-items:center; gap:4px}
+.wg-item .now-tag{display:none; font-size:10px; font-weight:700; color:#fff; background:var(--primary); border-radius:999px; padding:1px 6px}
+.wg-item.now{outline:2px solid var(--primary); box-shadow:0 4px 12px rgba(var(--primary-rgb),.3)}
+.wg-item.now .now-tag{display:inline-block}
+.dash-row{display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px}
+.dash-sched{flex:1 1 320px; min-width:0}
+.dash-meal{flex:999 1 560px; min-width:0}
+.dash-row2{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; margin-bottom:14px}
+.dash-row2 .todo-list{margin-top:4px}
+.neis-tag{font-size:10px; font-weight:700; color:#0f766e; background:#ccfbf1; border-radius:4px; padding:2px 6px; vertical-align:middle}
+.pill-tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px}
+.pill-tabs button{font:inherit; font-size:12px; font-weight:700; border:1px solid var(--border); background:#fff; color:#475569; border-radius:999px; padding:5px 12px; cursor:pointer}
+.pill-tabs button.active{background:#0f766e; border-color:#0f766e; color:#fff}
+.sched-item{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f1f5f9}
+.sched-item:last-child{border-bottom:none}
+.sched-dd{font-size:12px; font-weight:800; border-radius:8px; padding:5px 8px; min-width:52px; text-align:center; background:#ccfbf1; color:#0f766e; flex-shrink:0}
+.sched-dd.off{background:#ffe4e6; color:#be123c}
+.sched-body{flex:1; min-width:0}
+.sched-body b{font-size:14px}
+.sched-body .when{font-size:12px; color:var(--muted)}
+.sched-off{font-size:10px; font-weight:700; color:#be123c; background:#ffe4e6; border-radius:4px; padding:1px 5px; margin-left:4px}
+.meal-scroll{overflow-x:auto}
+.meal-grid{display:grid; grid-template-columns:repeat(5, minmax(120px, 1fr)); gap:8px; min-width:620px}
+.meal-day{border:1px solid var(--border); border-radius:10px; padding:10px; background:#fafbff; display:flex; flex-direction:column; gap:6px; min-height:170px}
+.meal-day.today{border:2px solid var(--primary); background:var(--primary-soft)}
+.meal-day .md-head{display:flex; justify-content:space-between; align-items:center; gap:4px; font-size:13px; font-weight:800}
+.meal-day .md-head .school-chip{font-size:10px; padding:2px 6px}
+.meal-day ul{list-style:none; margin:0; padding:0; font-size:13px; line-height:1.5}
+.meal-day .al{font-size:10px; color:#94a3b8; margin-left:2px}
+.meal-day .kcal{margin-top:auto; font-size:11px; color:var(--muted)}
+.meal-day .none{font-size:12px; color:var(--muted)}
+.ev-prog{margin-bottom:12px}
+.ev-prog .t{display:flex; justify-content:space-between; gap:8px; font-size:14px}
+.ev-prog .s{font-size:12px; color:var(--muted)}
+.pbar{height:8px; background:#eef2f7; border-radius:999px; overflow:hidden; margin:6px 0 4px}
+.pbar i{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--primary), var(--primary-2))}
+.dash-msg{padding:16px 12px; text-align:center; color:var(--muted); font-size:13px; background:#f8fafc; border-radius:10px}
+.dash-msg .btn{margin-top:8px}
+/* 설정 : 나이스 연동 */
+.neis-search{margin-top:8px; padding:10px; border:1px dashed var(--border-strong); border-radius:10px; background:#fafbff}
+.neis-result{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:13px}
+.neis-result:last-child{border-bottom:none}
 /* 모바일 반응형 */
 @media (max-width: 780px){
 body{padding:12px}
@@ -418,6 +508,8 @@ body{padding:12px}
 .cal .dow{font-size:11px; padding:5px 0}
 .card{padding:12px}
 .todo-item .todo-time{display:none}
+.dash-time{font-size:44px}
+.dash-school{font-size:20px}
 }
 </style>
 </head>
@@ -446,11 +538,15 @@ body{padding:12px}
 </div>
 </div>
 <div class="modes">
-<div class="mode active" data-mode="prog">진도 관리</div>
+<div class="mode active" data-mode="dash">대시보드</div>
+<div class="mode" data-mode="prog">진도 관리</div>
 <div class="mode" data-mode="eval">수행평가</div>
 <div class="mode" data-mode="set">설정</div>
 </div>
-<div class="tabs" data-mode="prog">
+<div class="tabs" data-mode="dash" style="display:none">
+<div class="tab active" data-view="dash">대시보드</div>
+</div>
+<div class="tabs" data-mode="prog" style="display:none">
 <div class="tab active" data-view="day">일</div>
 <div class="tab" data-view="week">주</div>
 <div class="tab" data-view="cal">캘린더</div>
@@ -468,6 +564,67 @@ body{padding:12px}
 </div>
 <div class="tabs" data-mode="set" style="display:none">
 <div class="tab" data-view="settings">설정</div>
+</div>
+<!-- 대시보드 -->
+<div id="dashCard" style="display:none">
+<div class="dash-top">
+<div class="card" id="dashToday"><div class="dash-label">오늘 근무학교</div><div class="skeleton"><span class="spinner"></span>불러오는 중...</div></div>
+<div class="card dash-clock">
+<div class="dash-label">지금 시각</div>
+<div class="dash-time"><span id="dashClock">--:--</span><small id="dashSec"></small></div>
+<div class="dash-date" id="dashDate"></div>
+<div class="dash-status">
+<b id="dashStatus">-</b>
+<div class="dash-bar"><i id="dashBar"></i></div>
+<div class="dash-sub" id="dashSub"></div>
+</div>
+</div>
+<div class="card">
+<div class="dash-cal-head">
+<div class="dash-label" id="dashCalTitle">-</div>
+<div class="nav"><button title="이전 달" onclick="dashMoveMonth(-1)">‹</button><button title="다음 달" onclick="dashMoveMonth(1)">›</button></div>
+</div>
+<div id="dashCalBody"></div>
+<div class="dash-legend"><span><i style="width:6px;height:6px;border-radius:50%;background:var(--primary)"></i>수업 있는 날 (점 색 = 학교)</span><span><i style="width:11px;height:11px;border-radius:50%;border:2px solid #0f766e;box-sizing:border-box"></i>나이스 학사일정</span><span style="color:#dc2626">빨간 날짜 = 휴일</span></div>
+</div>
+</div>
+<div class="card">
+<div class="dash-head">
+<h2>주간 시간표 <span class="muted" id="dashWeekTitle"></span></h2>
+<div class="flex">
+<button class="btn ghost sm" onclick="dashMoveWeek(-1)">‹ 지난주</button>
+<button class="btn sm" onclick="dashMoveWeek(0)">이번 주</button>
+<button class="btn ghost sm" onclick="dashMoveWeek(1)">다음 주 ›</button>
+</div>
+</div>
+<div class="dash-week" id="dashWeekBody"></div>
+<div class="hint">칸 위 시간은 설정의 학교별 시정표 기준입니다. 칸을 누르면 진도를 보고 고칠 수 있어요.</div>
+</div>
+<div class="dash-row">
+<div class="card dash-sched">
+<div class="dash-head"><h2>학사일정 <span class="neis-tag">NEIS</span></h2><span class="muted" style="font-size:12px">오늘부터 10주</span></div>
+<div class="pill-tabs" id="dashSchedTabs"></div>
+<div id="dashSched"></div>
+</div>
+<div class="card dash-meal">
+<div class="dash-head"><h2>급식 <span class="neis-tag">NEIS</span></h2><span class="muted" style="font-size:12px">요일마다 그날 근무학교 식단 · 작은 숫자 = 알레르기 번호</span></div>
+<div id="dashMeal"></div>
+</div>
+</div>
+<div class="dash-row2">
+<div class="card">
+<div class="dash-head"><h2>오늘의 할 일 <span class="badge" id="dashTodoCount">0</span></h2></div>
+<div class="todo-input">
+<input type="text" id="dashTodoText" placeholder="할 일을 입력하세요" onkeydown="if(event.key==='Enter')submitTodo('dashTodoText')"/>
+<button class="btn" onclick="submitTodo('dashTodoText')">추가</button>
+</div>
+<div class="todo-list" id="dashTodoList"></div>
+</div>
+<div class="card">
+<div class="dash-head"><h2>수행평가 현황</h2><button class="btn ghost sm" onclick="goMode('eval')">수행평가로 ›</button></div>
+<div id="dashEval"></div>
+</div>
+</div>
 </div>
 <!-- 설정 -->
 <div id="setCard" class="card" style="display:none">
@@ -488,6 +645,23 @@ body{padding:12px}
 <h3>화면 테마</h3>
 <div class="themes" id="setThemes"></div>
 <div class="hint">누르면 바로 바뀌고 저장됩니다.</div>
+<h3>학교별 시정표</h3>
+<div class="row">
+<label class="field">학교<select id="bellSchool" onchange="renderBellForm()"></select></label>
+<label class="field">1교시 시작<input type="time" id="bellStart" oninput="renderBellPreview()"/></label>
+<label class="field">수업 (분)<input type="number" id="bellLen" min="20" max="90" oninput="renderBellPreview()"/></label>
+<label class="field">쉬는 시간 (분)<input type="number" id="bellBrk" min="0" max="60" oninput="renderBellPreview()"/></label>
+<label class="field">점심 (몇 교시 뒤)<input type="number" id="bellLunchAfter" min="0" max="8" oninput="renderBellPreview()"/></label>
+<label class="field">점심 (분)<input type="number" id="bellLunch" min="0" max="120" oninput="renderBellPreview()"/></label>
+<label class="field">중간놀이 (몇 교시 뒤, 0 = 없음)<input type="number" id="bellMidAfter" min="0" max="8" oninput="renderBellPreview()"/></label>
+<label class="field">중간놀이 (분)<input type="number" id="bellMid" min="0" max="60" oninput="renderBellPreview()"/></label>
+</div>
+<div id="bellPreview" class="flex" style="margin-top:10px; gap:6px"></div>
+<div class="hint">학교마다 따로 저장됩니다. 대시보드의 "지금 몇 교시", 다음 수업, 시간표 칸의 시간이 이 시정을 따릅니다. 저장하지 않은 학교는 기본값(09:00 시작 · 40분 수업 · 10분 쉬는 시간 · 4교시 뒤 점심 50분)을 씁니다.</div>
+<div style="margin-top:10px"><button class="btn" onclick="saveBell()">시정 저장</button></div>
+<h3>나이스 연동 (학사일정 · 급식)</h3>
+<div class="hint" style="margin-bottom:8px">내 학교 이름마다 나이스의 학교를 한 번 연결하면 대시보드에 학사일정과 급식이 나옵니다. 인증키는 서버(Supabase Edge Function <b>neis</b>)에만 저장됩니다.</div>
+<div id="neisList"></div>
 </div>
 <!-- 수행평가 : 학교 선택 -->
 <div id="evalBar" class="card" style="display:none">
@@ -546,7 +720,7 @@ body{padding:12px}
 </div>
 </div>
 <!-- 조회 공통 툴바 (좌우 화살표 + 날짜만) -->
-<div id="viewerCard" class="card">
+<div id="viewerCard" class="card" style="display:none">
 <div class="toolbar">
 <div class="nav">
 <button title="이전(큰)" onclick="moveDate('big',-1)">«</button>
@@ -1065,6 +1239,8 @@ document.addEventListener('DOMContentLoaded', async function(){
 · year  : 학년도 (3월 ~ 다음 해 2월)
 · dday  : 상단 D-day 날짜와 문구
 · theme : 화면 테마
+· bell  : 학교별 시정표 { 학교: {start, len, brk, lunchAfter, lunch, midAfter, mid} }
+· neis_schools : 나이스 학교 연결 { 학교: {atpt, code, name, office} }
 ========================================================= */
 const THEMES = [
 { id: 'violet', name: '기본 (보라)', colors: ['#4f46e5', '#7c3aed', '#db2777'] },
@@ -1073,16 +1249,16 @@ const THEMES = [
 { id: 'sunset', name: '노을', colors: ['#ea580c', '#e11d48', '#f59e0b'] },
 { id: 'mono', name: '모노', colors: ['#334155', '#0f172a', '#64748b'] }
 ];
-let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet' };
+let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet', bell: {}, neis: {} };
 
 let state = {
-view: 'day',
+view: 'dash',
 date: '',
 today: '',
 schools: [],
 currentRecords: [],
 editingRow: null,
-modeView: { prog: 'day', eval: 'etask', set: 'settings' }
+modeView: { dash: 'dash', prog: 'day', eval: 'etask', set: 'settings' }
 };
 
 /* [성능] 뷰별 응답 캐시 (같은 날짜를 다시 볼 때 서버 왕복 생략)
@@ -1182,6 +1358,8 @@ rows.forEach(function(r){
 if (r.key === 'school_year') settings.year = Number(r.value) || 0;
 else if (r.key === 'dday') settings.dday = r.value || {};
 else if (r.key === 'theme') settings.theme = r.value || 'violet';
+else if (r.key === 'bell') settings.bell = r.value || {};
+else if (r.key === 'neis_schools') settings.neis = r.value || {};
 });
 }
 async function saveSetting(key, value){
@@ -1269,16 +1447,24 @@ document.querySelectorAll('.mode').forEach(function(m){
 m.addEventListener('click', function(){
 const mode = m.dataset.mode;
 document.querySelectorAll('.mode').forEach(function(x){ x.classList.toggle('active', x === m); });
-// 설정은 탭이 하나뿐이라 탭 줄을 숨김
-document.querySelectorAll('.tabs').forEach(function(x){ x.style.display = (x.dataset.mode === mode && mode !== 'set') ? '' : 'none'; });
+// 대시보드 · 설정은 탭이 하나뿐이라 탭 줄을 숨김
+document.querySelectorAll('.tabs').forEach(function(x){ x.style.display = (x.dataset.mode === mode && mode !== 'set' && mode !== 'dash') ? '' : 'none'; });
 document.querySelector('.tabs[data-mode="'+mode+'"] .tab[data-view="'+state.modeView[mode]+'"]').click();
 });
 });
 addTtItem();
+// 첫 화면 : 대시보드
+goMode('dash');
+}
+
+function goMode(mode){
+const m = document.querySelector('.mode[data-mode="'+mode+'"]');
+if (m) m.click();
 }
 
 function updateVisibility(){
 const v = state.view;
+document.getElementById('dashCard').style.display = (v==='dash') ? '' : 'none';
 document.getElementById('viewerCard').style.display = (['day','week','cal'].indexOf(v)>=0) ? '' : 'none';
 document.getElementById('ttCard').style.display = (v==='tt') ? '' : 'none';
 document.getElementById('statCard').style.display = (v==='stat')? '' : 'none';
@@ -1329,7 +1515,8 @@ reload();
 
 function reload(){
 const v = state.view;
-if (v==='day') { loadDay(); loadTodos(); }
+if (v==='dash') loadDashboard();
+else if (v==='day') { loadDay(); loadTodos(); }
 else if (v==='week') loadWeek();
 else if (v==='cal') loadCalendar();
 else if (v==='hol') loadHolidays();
@@ -1376,6 +1563,8 @@ return '<button type="button" class="theme-opt' + (t.id === (settings.theme || '
 '<div class="sw" style="background:linear-gradient(135deg,' + t.colors.join(',') + ')"></div>' +
 '<div class="nm">' + esc(t.name) + '</div></button>';
 }).join('');
+renderBellForm();
+renderNeisSettings();
 }
 async function changeYear(){
 const sel = document.getElementById('setYear');
@@ -1695,8 +1884,12 @@ reload();
 
 /* ============== 진도 상세 모달 ============== */
 function findRecordByRow(row){
-for (let i=0;i<state.currentRecords.length;i++){
-if (state.currentRecords[i].row === row) return state.currentRecords[i];
+// 대시보드 주간 시간표의 자료도 함께 찾음
+const lists = [state.currentRecords, (state.view === 'dash' && dash.records) || []];
+for (let j=0;j<lists.length;j++){
+for (let i=0;i<lists[j].length;i++){
+if (lists[j][i].row === row) return lists[j][i];
+}
 }
 return null;
 }
@@ -1765,13 +1958,9 @@ google.script.run.withSuccessHandler(renderTodos).getTodos();
 }
 function renderTodos(list){
 list = list || [];
-document.getElementById('todoCount').textContent = list.length;
-const box = document.getElementById('todoList');
-if (!list.length){
-box.innerHTML = '<div class="empty" style="padding:14px"><div>진행 중인 할 일이 없습니다.</div></div>';
-return;
-}
-box.innerHTML = list.map(function(t){
+['todoCount', 'dashTodoCount'].forEach(function(id){ document.getElementById(id).textContent = list.length; });
+const html = !list.length ? '<div class="empty" style="padding:14px"><div>진행 중인 할 일이 없습니다.</div></div>' :
+list.map(function(t){
 return '<div class="todo-item">' +
 '<input type="checkbox" onchange="completeTodo('+t.row+')" title="완료"/>' +
 '<div class="todo-text">'+esc(t.text)+'</div>' +
@@ -1779,9 +1968,10 @@ return '<div class="todo-item">' +
 '<button class="todo-del" onclick="deleteTodo('+t.row+')" title="삭제">✕</button>' +
 '</div>';
 }).join('');
+['todoList', 'dashTodoList'].forEach(function(id){ document.getElementById(id).innerHTML = html; });
 }
-function submitTodo(){
-const el = document.getElementById('todoText');
+function submitTodo(inputId){
+const el = document.getElementById(inputId || 'todoText');
 const t = el.value.trim();
 if (!t){ toast('내용을 입력하세요','err'); return; }
 google.script.run
@@ -2888,6 +3078,609 @@ esc(ev.school) + ' ' + esc(s.class_name) + ' ' + s.number + '번 <b>' + esc(s.na
 }).join('') + '</div><script>window.print()<\/script></body></html>');
 w.document.close();
 }
+/* =========================================================
+   학교별 시정표 (app_settings 'bell')
+   - 학교마다 1교시 시작 · 수업 · 쉬는 시간 · 점심 · 중간놀이로 교시 시간을 계산
+========================================================= */
+const BELL_DEFAULT = { start: '09:00', len: 40, brk: 10, lunchAfter: 4, lunch: 50, midAfter: 0, mid: 0 };
+const BELL_MAX_PERIOD = 8;
+function bellOf(school){
+return Object.assign({}, BELL_DEFAULT, (settings.bell || {})[school] || {});
+}
+function hmToMin(t){
+const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ''));
+return m ? Number(m[1]) * 60 + Number(m[2]) : 540;
+}
+function minToHm(m){ return ('0' + Math.floor(m / 60) % 24).slice(-2) + ':' + ('0' + (m % 60)).slice(-2); }
+// 교시별 [시작, 끝] (분) : 1 ~ BELL_MAX_PERIOD
+function bellSlots(b){
+const out = {};
+let t = hmToMin(b.start);
+const len = Math.max(1, Number(b.len) || 40);
+for (let p = 1; p <= BELL_MAX_PERIOD; p++){
+out[p] = { s: t, e: t + len };
+let gap = Number(b.brk) || 0;
+if (Number(b.lunchAfter) === p) gap = Number(b.lunch) || 0;
+else if (Number(b.midAfter) === p) gap = Number(b.mid) || 0;
+t = t + len + gap;
+}
+return out;
+}
+const _slotCache = {};
+function slotOf(school, period){
+const p = parseInt(period, 10);
+if (!p || p < 1 || p > BELL_MAX_PERIOD) return null;
+const key = school + '|' + JSON.stringify(bellOf(school));
+if (!_slotCache[key]) _slotCache[key] = bellSlots(bellOf(school));
+return _slotCache[key][p];
+}
+function bellSchoolNames(){
+const set = {};
+state.schools.forEach(function(s){ set[s] = true; });
+Object.keys(settings.bell || {}).forEach(function(s){ set[s] = true; });
+return Object.keys(set).sort();
+}
+function bellFormValue(){
+function n(id){ const v = Number(document.getElementById(id).value); return isFinite(v) && v >= 0 ? Math.round(v) : 0; }
+return {
+start: document.getElementById('bellStart').value || BELL_DEFAULT.start,
+len: Math.max(1, n('bellLen')), brk: n('bellBrk'),
+lunchAfter: n('bellLunchAfter'), lunch: n('bellLunch'),
+midAfter: n('bellMidAfter'), mid: n('bellMid')
+};
+}
+function renderBellForm(){
+const sel = document.getElementById('bellSchool');
+const names = bellSchoolNames();
+const prev = sel.value;
+sel.innerHTML = names.length ? names.map(function(s){ return opt(s); }).join('') : '<option value="">(진도 자료에 학교가 없습니다)</option>';
+if (names.indexOf(prev) >= 0) sel.value = prev;
+const b = bellOf(sel.value);
+document.getElementById('bellStart').value = b.start;
+document.getElementById('bellLen').value = b.len;
+document.getElementById('bellBrk').value = b.brk;
+document.getElementById('bellLunchAfter').value = b.lunchAfter;
+document.getElementById('bellLunch').value = b.lunch;
+document.getElementById('bellMidAfter').value = b.midAfter;
+document.getElementById('bellMid').value = b.mid;
+renderBellPreview();
+}
+function renderBellPreview(){
+const slots = bellSlots(bellFormValue());
+let html = '';
+for (let p = 1; p <= BELL_MAX_PERIOD; p++){
+html += '<span class="badge" style="font-size:12px; padding:4px 10px">' + p + '교시 ' + minToHm(slots[p].s) + '~' + minToHm(slots[p].e) + '</span>';
+}
+document.getElementById('bellPreview').innerHTML = html;
+}
+async function saveBell(){
+const school = document.getElementById('bellSchool').value;
+if (!school){ toast('학교를 선택하세요.', 'err'); return; }
+const next = Object.assign({}, settings.bell || {});
+next[school] = bellFormValue();
+try { await saveSetting('bell', next); }
+catch (e) { toast(e.message, 'err'); return; }
+settings.bell = next;
+toast(school + ' 시정을 저장했습니다.', 'ok');
+}
+
+/* =========================================================
+   나이스(NEIS) 연동 : Supabase Edge Function 'neis'를 거쳐 호출
+   - 인증키는 함수의 비밀값(NEIS_API_KEY)에만 있고 브라우저에는 없음
+   - type: school(학교 검색) · meal(급식) · schedule(학사일정)
+========================================================= */
+const neisCache = {};
+function neisCall(body){
+const key = JSON.stringify(body);
+if (neisCache[key]) return neisCache[key];
+const p = sb.functions.invoke('neis', { body: body }).then(async function(res){
+if (res.error){
+let msg = res.error.message || '나이스 연결에 실패했습니다.';
+try { const j = await res.error.context.json(); if (j && j.error) msg = j.error; } catch (e) {}
+throw new Error(msg);
+}
+return (res.data && res.data.rows) || [];
+});
+neisCache[key] = p;
+p.catch(function(){ delete neisCache[key]; });
+return p;
+}
+function ymd(ds){ return String(ds).replace(/-/g, ''); }
+function ymdToDs(s){ s = String(s); return s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8); }
+function addDays(ds, n){ const d = parseD(ds); d.setDate(d.getDate() + n); return fmt(d); }
+function neisLink(school){ const l = (settings.neis || {})[school]; return l && l.code ? l : null; }
+function neisLinkedSchools(){ return Object.keys(settings.neis || {}).filter(neisLink).sort(); }
+
+/* ----- 설정 화면 : 학교 연결 ----- */
+let neisUi = { rows: [], open: -1, results: null, loading: false, error: '' };
+function renderNeisSettings(){
+const set = {};
+state.schools.forEach(function(s){ set[s] = true; });
+Object.keys(settings.neis || {}).forEach(function(s){ set[s] = true; });
+neisUi.rows = Object.keys(set).sort();
+const box = document.getElementById('neisList');
+if (!neisUi.rows.length){
+box.innerHTML = '<div class="empty" style="padding:14px">진도 자료에 학교가 없습니다. 먼저 진도를 입력하세요.</div>';
+return;
+}
+let html = '<table><thead><tr><th>내 학교 이름</th><th>나이스 학교</th><th style="width:150px">동작</th></tr></thead><tbody>';
+neisUi.rows.forEach(function(name, i){
+const l = neisLink(name);
+html += '<tr><td>' + chip(name) + '</td><td>' +
+(l ? esc(l.name) + ' <span class="muted" style="font-size:12px">' + esc(l.office || '') + ' · ' + esc(l.code) + '</span>' : '<span class="muted">연결 안 됨</span>') +
+'</td><td><button class="btn sm' + (l ? ' ghost' : '') + '" onclick="neisOpenSearch(' + i + ')">' + (l ? '다시 검색' : '학교 검색') + '</button>' +
+(l ? ' <button class="btn ghost sm" onclick="neisUnlink(' + i + ')">해제</button>' : '') + '</td></tr>';
+if (neisUi.open === i){
+html += '<tr><td colspan="3"><div class="neis-search">' +
+'<div class="flex" style="align-items:center"><input type="text" id="neisQuery" value="' + esc(neisUi.query || name) + '" placeholder="나이스에 등록된 학교 이름" onkeydown="if(event.key===\'Enter\')neisSearch()" style="flex:1; min-width:160px"/>' +
+'<button class="btn sm" onclick="neisSearch()">검색</button><button class="btn ghost sm" onclick="neisCloseSearch()">닫기</button></div>' +
+'<div style="margin-top:8px">' + neisResultsHtml() + '</div></div></td></tr>';
+}
+});
+html += '</tbody></table>';
+box.innerHTML = html;
+}
+function neisResultsHtml(){
+if (neisUi.loading) return '<span class="spinner"></span>검색 중...';
+if (neisUi.error) return '<span style="color:var(--danger); font-size:13px">' + esc(neisUi.error) + '</span>';
+if (!neisUi.results) return '<span class="hint">예: 정식 이름 "서울OO초등학교"의 일부를 넣고 검색하세요.</span>';
+if (!neisUi.results.length) return '<span class="hint">검색 결과가 없습니다.</span>';
+return neisUi.results.map(function(r, j){
+return '<div class="neis-result"><div><b>' + esc(r.name) + '</b> <span class="muted">' + esc(r.office || '') + ' · ' + esc(r.kind || '') + '</span>' +
+'<div class="muted" style="font-size:12px">' + esc(r.addr || '') + '</div></div>' +
+'<button class="btn sm" onclick="neisPick(' + j + ')">연결</button></div>';
+}).join('');
+}
+function neisOpenSearch(i){
+neisUi.open = i; neisUi.results = null; neisUi.error = ''; neisUi.query = '';
+renderNeisSettings();
+neisSearch();
+}
+function neisCloseSearch(){ neisUi.open = -1; renderNeisSettings(); }
+async function neisSearch(){
+const q = (document.getElementById('neisQuery') || {}).value || '';
+neisUi.query = q.trim();
+if (neisUi.query.length < 2){ neisUi.error = '학교 이름을 2글자 이상 입력하세요.'; renderNeisSettings(); return; }
+neisUi.loading = true; neisUi.error = ''; renderNeisSettings();
+try { neisUi.results = await neisCall({ type: 'school', name: neisUi.query }); }
+catch (e) { neisUi.error = e.message; neisUi.results = null; }
+neisUi.loading = false;
+renderNeisSettings();
+}
+async function neisSaveLinks(next, okMsg){
+try { await saveSetting('neis_schools', next); }
+catch (e) { toast(e.message, 'err'); return false; }
+settings.neis = next;
+toast(okMsg, 'ok');
+return true;
+}
+async function neisPick(j){
+const name = neisUi.rows[neisUi.open], r = neisUi.results[j];
+const next = Object.assign({}, settings.neis || {});
+next[name] = { atpt: r.atpt, code: r.code, name: r.name, office: r.office };
+if (await neisSaveLinks(next, name + ' ↔ ' + r.name + ' 연결했습니다.')){ neisUi.open = -1; renderNeisSettings(); }
+}
+async function neisUnlink(i){
+const name = neisUi.rows[i];
+if (!confirm(name + '의 나이스 연결을 해제할까요?')) return;
+const next = Object.assign({}, settings.neis || {});
+delete next[name];
+if (await neisSaveLinks(next, '연결을 해제했습니다.')) renderNeisSettings();
+}
+
+/* =========================================================
+   대시보드
+   - 오늘 근무학교 · 시계(현재 교시) · 미니 달력 · 주간 시간표
+   - 나이스 학사일정 · 급식, 할 일, 수행평가 현황
+========================================================= */
+const dash = { week: '', month: '', todayRes: null, slots: [], timer: null, sched: [], schedTabs: [], schedFilter: '', calEvents: {}, records: [] };
+function dashThisWeek(){
+// 주말에는 다음 주를 보여줌
+const d = parseD(state.today), dow = d.getDay();
+if (dow === 6) d.setDate(d.getDate() + 2);
+else if (dow === 0) d.setDate(d.getDate() + 1);
+return weekRangeMonFri(fmt(d)).start;
+}
+function dashMsg(html){ return '<div class="dash-msg">' + html + '</div>'; }
+function dashErr(e){ return dashMsg('불러오지 못했습니다: ' + esc(e && e.message || e)); }
+function schoolDot(name){ return 'hsl(' + hashHue(name) + ',60%,45%)'; }
+function seoulNow(){
+const g = {};
+new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+.formatToParts(new Date()).forEach(function(p){ g[p.type] = p.value; });
+return { h: Number(g.hour), m: Number(g.minute), s: Number(g.second) };
+}
+function cachedCall(key, fn){
+if (viewCache[key]) return Promise.resolve(viewCache[key]);
+return fn().then(function(res){ viewCache[key] = res; syncSchoolsFrom(res); return res; });
+}
+
+function loadDashboard(){
+if (!dash.week) dash.week = dashThisWeek();
+if (!dash.month) dash.month = state.today.slice(0, 7);
+loadTodos();
+dashStartClock();
+dashLoadToday();
+dashLoadWeek();
+dashLoadCalendar();
+dashLoadSchedule();
+dashLoadEval();
+}
+function dashMoveWeek(dir){
+dash.week = dir === 0 ? dashThisWeek() : addDays(dash.week, 7 * dir);
+dashLoadWeek();
+}
+function dashMoveMonth(dir){
+const d = parseD(dash.month + '-01');
+d.setMonth(d.getMonth() + dir);
+dash.month = fmt(d).slice(0, 7);
+dashLoadCalendar();
+}
+function dashPickDate(ds){
+dash.week = weekRangeMonFri(ds).start;
+dashLoadWeek();
+document.getElementById('dashWeekBody').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ----- 오늘 근무학교 ----- */
+async function dashLoadToday(){
+const box = document.getElementById('dashToday');
+let res;
+try { res = await cachedCall('day|' + state.today, function(){ return API.getRecords(state.today, ''); }); }
+catch (e) { box.innerHTML = '<div class="dash-label">오늘 근무학교</div>' + dashErr(e); return; }
+dash.todayRes = res;
+const recs = res.records || [];
+dash.slots = recs.map(function(r){
+const t = slotOf(r.school, r.period);
+return t ? { p: parseInt(r.period, 10), school: r.school, cls: r.cls, s: t.s, e: t.e } : null;
+}).filter(Boolean).sort(function(a, b){ return a.s - b.s; });
+let html = '<div class="dash-label">오늘 근무학교</div>';
+if (res.holiday){
+html += '<div class="dash-school"><i style="background:#dc2626"></i>' + esc(res.holiday.reason || '휴일') + '</div>' +
+'<div class="dash-next"><span class="muted">오늘은 휴일입니다.</span></div>';
+} else if (!recs.length){
+html += '<div class="dash-school" style="font-size:20px">오늘은 수업이 없습니다</div>' +
+'<div class="dash-next"><span class="muted">진도 관리 › 자료 입력이나 기초 시간표에서 수업을 넣을 수 있어요.</span></div>';
+} else {
+const cnt = {};
+recs.forEach(function(r){ cnt[r.school] = (cnt[r.school] || 0) + 1; });
+const schools = Object.keys(cnt).sort(function(a, b){ return cnt[b] - cnt[a]; });
+const classes = [];
+recs.forEach(function(r){ if (r.cls && classes.indexOf(r.cls) < 0) classes.push(r.cls); });
+const ps = dash.slots.map(function(x){ return x.p; });
+html += schools.map(function(s){ return '<div class="dash-school"><i style="background:' + schoolDot(s) + '"></i>' + esc(s) + '</div>'; }).join('') +
+'<div class="dash-kpis">' +
+'<div class="dash-kpi"><div class="l">오늘 수업</div><div class="v">' + recs.length + '시간' +
+(ps.length ? ' <span class="muted" style="font-size:12px; font-weight:500">' + Math.min.apply(null, ps) + '~' + Math.max.apply(null, ps) + '교시</span>' : '') + '</div></div>' +
+'<div class="dash-kpi"><div class="l">담당 반</div><div class="v" style="font-size:15px">' + (classes.length ? esc(classes.join(' · ')) : '-') + '</div></div>' +
+'</div>' +
+'<div class="dash-next"><div class="l">다음 수업</div><b id="dashNext">-</b></div>';
+}
+box.innerHTML = html;
+dashTick();
+}
+
+/* ----- 시계 : 1초마다 ----- */
+function dashStartClock(){
+if (dash.timer) return;
+dash.timer = setInterval(function(){ if (state.view === 'dash') dashTick(); }, 1000);
+dashTick();
+}
+function dashTick(){
+const t = seoulNow();
+const pad = function(n){ return ('0' + n).slice(-2); };
+document.getElementById('dashClock').textContent = pad(t.h) + ':' + pad(t.m);
+document.getElementById('dashSec').textContent = pad(t.s);
+document.getElementById('dashDate').textContent = prettyLong(state.today);
+const now = t.h * 60 + t.m;
+const slots = dash.slots;
+let cur = null, next = null;
+slots.forEach(function(x){
+if (!cur && now >= x.s && now < x.e) cur = x;
+if (!next && now < x.s) next = x;
+});
+let status, sub = '', pct = 0;
+const res = dash.todayRes;
+if (!res){ status = '불러오는 중...'; }
+else if (res.holiday){ status = '오늘은 휴일입니다'; sub = res.holiday.reason || ''; }
+else if (!slots.length){ status = (res.records || []).length ? '교시가 지정된 수업이 없습니다' : '오늘은 수업이 없습니다'; }
+else if (cur){
+status = cur.p + '교시 진행 중 · ' + cur.school + ' ' + (cur.cls || '');
+sub = '종료까지 ' + (cur.e - now) + '분 (' + minToHm(cur.s) + ' ~ ' + minToHm(cur.e) + ')';
+pct = Math.round((now - cur.s) / (cur.e - cur.s) * 100);
+} else if (next){
+status = (now < slots[0].s ? '수업 전 · 첫 수업 ' : '쉬는 시간 · 다음 ') + next.p + '교시';
+sub = next.p + '교시 시작까지 ' + (next.s - now) + '분 · ' + next.school + ' ' + (next.cls || '');
+} else {
+status = '오늘 수업이 모두 끝났습니다'; sub = '수고하셨어요'; pct = 100;
+}
+document.getElementById('dashStatus').textContent = status;
+document.getElementById('dashSub').textContent = sub;
+document.getElementById('dashBar').style.width = pct + '%';
+const nx = document.getElementById('dashNext');
+if (nx) nx.textContent = next ? next.p + '교시 · ' + next.school + ' ' + (next.cls || '') + ' · ' + minToHm(next.s) + ' 시작' : '오늘 남은 수업 없음';
+// 주간 시간표에서 지금 교시 강조
+const nowKey = cur ? state.today + '|' + cur.p : '';
+document.querySelectorAll('#dashWeekBody .wg-item').forEach(function(el){
+el.classList.toggle('now', !!nowKey && el.dataset.slot === nowKey);
+});
+}
+
+/* ----- 주간 시간표 ----- */
+async function dashLoadWeek(){
+const start = dash.week, end = addDays(start, 4);
+const s = parseD(start), e = parseD(end);
+document.getElementById('dashWeekTitle').textContent =
+(s.getMonth() + 1) + '/' + s.getDate() + '(월) ~ ' + (e.getMonth() + 1) + '/' + e.getDate() + '(금)';
+const box = document.getElementById('dashWeekBody');
+box.innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>';
+document.getElementById('dashMeal').innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>';
+let res;
+try { res = await cachedCall('week|' + start, function(){ return API.getRecordsRange(start, end, ''); }); }
+catch (err) { box.innerHTML = dashErr(err); document.getElementById('dashMeal').innerHTML = ''; return; }
+if (dash.week !== start) return;
+dash.records = res.records || [];
+state.currentRecords = dash.records;
+renderDashWeek(res, start);
+dashTick();
+dashLoadMeals(res, start);
+}
+function renderDashWeek(res, start){
+const days = [];
+for (let i = 0; i < 5; i++){
+const ds = addDays(start, i), d = parseD(ds);
+days.push({ date: ds, label: dowLabel(d), dayNum: d.getDate(), hol: findHoliday(ds, res.holidays || []) });
+}
+const map = {};
+let maxP = 6;
+(res.records || []).forEach(function(r){
+const p = parseInt(r.period, 10);
+if (!p || p < 1 || p > BELL_MAX_PERIOD) return;
+if (p > maxP) maxP = p;
+(map[r.date + '|' + p] = map[r.date + '|' + p] || []).push(r);
+});
+let html = '<div class="week-grid week"><div class="wg-corner">교시</div>';
+days.forEach(function(day){
+const cls = (day.date === state.today) ? 'today' : (day.hol ? 'holiday' : '');
+html += '<div class="wg-head ' + cls + '"><div class="wg-dow">' + day.label + (day.date === state.today ? ' · 오늘' : '') + '</div>' +
+'<div class="wg-date">(' + day.dayNum + '일)</div></div>';
+});
+for (let p = 1; p <= maxP; p++){
+html += '<div class="wg-period">' + p + '교시</div>';
+days.forEach(function(day){
+if (day.hol){ html += '<div class="wg-cell hol">' + esc(day.hol.reason || '휴일') + '</div>'; return; }
+let cell = '<div class="wg-cell">';
+(map[day.date + '|' + p] || []).forEach(function(r){
+const t = slotOf(r.school, p);
+cell += '<div class="wg-item" data-slot="' + day.date + '|' + p + '" style="' + schoolStyle(r.school) + '" onclick="openProgModal(' + r.row + ')">' +
+'<div class="wg-top"><span class="wg-cls">' + esc(r.cls || '(반없음)') + '</span><span class="now-tag">진행 중</span></div>' +
+'<div class="wg-school">' + esc(r.school || '') + (t ? ' <span class="wg-time">' + minToHm(t.s) + '~' + minToHm(t.e) + '</span>' : '') + '</div>' +
+(r.progress ? '<div class="wg-prog">' + esc(r.progress) + '</div>' : '') +
+'</div>';
+});
+html += cell + '</div>';
+});
+}
+html += '</div>';
+const extra = (res.records || []).filter(function(r){ const p = parseInt(r.period, 10); return !p || p < 1 || p > BELL_MAX_PERIOD; });
+if (extra.length) html += '<div class="hint">교시가 지정되지 않은 자료 ' + extra.length + '건은 진도 관리 › 주 화면에서 볼 수 있어요.</div>';
+document.getElementById('dashWeekBody').innerHTML = html;
+}
+
+/* ----- 미니 달력 ----- */
+async function dashLoadCalendar(){
+const month = dash.month;
+const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7));
+document.getElementById('dashCalTitle').textContent = y + '년 ' + m + '월';
+let res;
+try { res = await cachedCall('cal|' + y + '-' + m, function(){ return API.getMonthSummary(y, m, ''); }); }
+catch (e) { document.getElementById('dashCalBody').innerHTML = dashErr(e); return; }
+if (dash.month !== month) return;
+renderDashCalendar(res);
+// 나이스 학사일정 표시 (연결된 학교만)
+const linked = neisLinkedSchools();
+if (!linked.length) return;
+const from = month + '-01', to = fmt(new Date(y, m, 0));
+const evs = {};
+await Promise.all(linked.map(function(sc){
+const l = neisLink(sc);
+return neisCall({ type: 'schedule', atpt: l.atpt, code: l.code, from: ymd(from), to: ymd(to) }).then(function(rows){
+rows.forEach(function(r){
+if (!neisEventShown(r)) return;
+const ds = ymdToDs(r.date);
+(evs[ds] = evs[ds] || []).push({ school: sc, name: r.name, off: r.off });
+});
+}).catch(function(){});
+}));
+if (dash.month !== month) return;
+dash.calEvents = evs;
+renderDashCalendar(res);
+}
+function renderDashCalendar(res){
+const y = res.year, m = res.month;
+const first = new Date(y, m - 1, 1);
+const start = new Date(y, m - 1, 1 - first.getDay());
+const weeks = Math.ceil((first.getDay() + new Date(y, m, 0).getDate()) / 7);
+const wkStart = dash.week, wkEnd = addDays(dash.week, 4);
+const evs = dash.calEvents || {};
+let html = '<div class="mcal">' + ['일','월','화','수','목','금','토'].map(function(n, i){
+return '<div class="dw' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '') + '">' + n + '</div>';
+}).join('');
+for (let i = 0; i < weeks * 7; i++){
+const dt = new Date(start); dt.setDate(start.getDate() + i);
+const ds = fmt(dt), dow = dt.getDay();
+const info = res.summary[ds];
+const hol = findHoliday(ds, res.holidays || []);
+const ev = evs[ds] || [];
+const neisOff = ev.some(function(x){ return x.off; });
+const cls = [];
+if (dt.getMonth() !== m - 1) cls.push('out');
+if (dow === 0) cls.push('sun'); else if (dow === 6) cls.push('sat');
+if (hol || neisOff) cls.push('hol');
+if (ev.length) cls.push('ev');
+if (ds === state.today) cls.push('today');
+if (ds >= wkStart && ds <= wkEnd) cls.push('wk');
+const tip = [];
+if (hol) tip.push(hol.reason || '휴일');
+ev.forEach(function(x){ tip.push(x.school + ' ' + x.name); });
+if (info) tip.push('수업 ' + info.count + '건 (' + info.schools.join(', ') + ')');
+const dots = info ? info.schools.slice(0, 3).map(function(s){ return '<i style="background:' + schoolDot(s) + '"></i>'; }).join('') : '';
+html += '<button type="button" class="' + cls.join(' ') + '" title="' + esc(tip.join(' · ')) + '" onclick="dashPickDate(\'' + ds + '\')">' +
+'<span class="n">' + dt.getDate() + '</span><span class="dots">' + dots + '</span></button>';
+}
+document.getElementById('dashCalBody').innerHTML = html + '</div>';
+}
+
+/* ----- 나이스 학사일정 ----- */
+// 토요휴업일 같은 매주 반복 항목은 숨김
+function neisEventShown(r){ return r.name && !/토요휴업일/.test(r.name); }
+function needNeisHtml(what){
+return dashMsg(what + '을 보려면 설정에서 학교를 나이스와 연결하세요.<br><button class="btn sm" onclick="goMode(\'set\')">설정으로</button>');
+}
+async function dashLoadSchedule(){
+const box = document.getElementById('dashSched');
+const tabs = document.getElementById('dashSchedTabs');
+const linked = neisLinkedSchools();
+if (!linked.length){ tabs.innerHTML = ''; box.innerHTML = needNeisHtml('학사일정'); return; }
+box.innerHTML = '<div class="skeleton"><span class="spinner"></span>나이스에서 불러오는 중...</div>';
+const from = state.today, to = addDays(state.today, 70);
+const list = [], errors = [];
+await Promise.all(linked.map(function(sc){
+const l = neisLink(sc);
+return neisCall({ type: 'schedule', atpt: l.atpt, code: l.code, from: ymd(from), to: ymd(to) }).then(function(rows){
+// 같은 행사가 며칠 이어지면 (주말 사이 포함) 한 줄로 합침
+const sorted = rows.filter(neisEventShown).map(function(r){ return { ds: ymdToDs(r.date), name: r.name, off: !!r.off }; })
+.sort(function(a, b){ return a.ds < b.ds ? -1 : a.ds > b.ds ? 1 : 0; });
+const open = {};
+sorted.forEach(function(r){
+const k = r.name + '|' + r.off, o = open[k];
+if (o && daysBetween(r.ds, o.end) <= 3){ o.end = r.ds; return; }
+open[k] = { school: sc, name: r.name, off: r.off, start: r.ds, end: r.ds };
+list.push(open[k]);
+});
+}).catch(function(e){ errors.push(sc + ': ' + e.message); });
+}));
+list.sort(function(a, b){ return a.start < b.start ? -1 : a.start > b.start ? 1 : a.school.localeCompare(b.school); });
+dash.sched = list;
+dash.schedErrors = errors;
+if (dash.schedFilter && linked.indexOf(dash.schedFilter) < 0) dash.schedFilter = '';
+dash.schedTabs = [''].concat(linked);
+tabs.innerHTML = linked.length > 1 ? dash.schedTabs.map(function(sc, i){
+return '<button type="button" class="' + (dash.schedFilter === sc ? 'active' : '') + '" onclick="dashSchedPick(' + i + ')">' + (sc ? esc(sc) : '전체') + '</button>';
+}).join('') : '';
+renderDashSchedule();
+}
+function dashSchedPick(i){
+dash.schedFilter = dash.schedTabs[i] || '';
+document.querySelectorAll('#dashSchedTabs button').forEach(function(b, j){ b.classList.toggle('active', j === i); });
+renderDashSchedule();
+}
+function renderDashSchedule(){
+const box = document.getElementById('dashSched');
+const items = dash.sched.filter(function(x){ return !dash.schedFilter || x.school === dash.schedFilter; }).slice(0, 12);
+let html = '';
+(dash.schedErrors || []).forEach(function(m){ html += '<div class="hint" style="color:var(--danger)">' + esc(m) + '</div>'; });
+if (!items.length){ box.innerHTML = html + dashMsg('앞으로 10주 동안 학사일정이 없습니다.'); return; }
+html += items.map(function(x){
+const d0 = daysBetween(x.start, state.today);
+const dd = d0 > 0 ? 'D-' + d0 : (d0 === 0 ? 'D-DAY' : '진행 중');
+const sd = parseD(x.start), ed = parseD(x.end);
+let when = (sd.getMonth() + 1) + '/' + sd.getDate() + '(' + dowLabel(sd) + ')';
+if (x.end !== x.start) when += ' ~ ' + (ed.getMonth() + 1) + '/' + ed.getDate() + '(' + dowLabel(ed) + ')';
+return '<div class="sched-item"><span class="sched-dd' + (x.off ? ' off' : '') + '">' + dd + '</span>' +
+'<div class="sched-body"><b>' + esc(x.name) + '</b>' + (x.off ? '<span class="sched-off">휴업일</span>' : '') +
+'<div class="when">' + when + '</div></div>' + chip(x.school) + '</div>';
+}).join('');
+box.innerHTML = html;
+}
+
+/* ----- 나이스 급식 : 요일마다 그날 수업이 가장 많은 학교 ----- */
+async function dashLoadMeals(res, start){
+const box = document.getElementById('dashMeal');
+const end = addDays(start, 4);
+const days = [];
+for (let i = 0; i < 5; i++){
+const ds = addDays(start, i), cnt = {};
+(res.records || []).forEach(function(r){ if (r.date === ds && r.school) cnt[r.school] = (cnt[r.school] || 0) + 1; });
+const school = Object.keys(cnt).sort(function(a, b){ return cnt[b] - cnt[a]; })[0] || '';
+days.push({ ds: ds, school: school, hol: findHoliday(ds, res.holidays || []) });
+}
+const linked = neisLinkedSchools();
+if (!linked.length){ box.innerHTML = needNeisHtml('급식'); return; }
+const need = [];
+days.forEach(function(d){ if (d.school && neisLink(d.school) && need.indexOf(d.school) < 0) need.push(d.school); });
+const meals = {}, errors = {};
+await Promise.all(need.map(function(sc){
+const l = neisLink(sc);
+return neisCall({ type: 'meal', atpt: l.atpt, code: l.code, from: ymd(start), to: ymd(end) }).then(function(rows){
+rows.forEach(function(r){
+const k = sc + '|' + ymdToDs(r.date);
+// 중식을 먼저, 없으면 처음 나온 끼니
+if (!meals[k] || (r.kind === '중식' && meals[k].kind !== '중식')) meals[k] = r;
+});
+}).catch(function(e){ errors[sc] = e.message; });
+}));
+if (dash.week !== start) return;
+box.innerHTML = '<div class="meal-scroll"><div class="meal-grid">' + days.map(function(d){
+const dt = parseD(d.ds);
+const head = '<div class="md-head"><span>' + dowLabel(dt) + ' ' + (dt.getMonth() + 1) + '/' + dt.getDate() + (d.ds === state.today ? ' · 오늘' : '') + '</span>' + (d.school ? chip(d.school) : '') + '</div>';
+let body;
+const meal = meals[d.school + '|' + d.ds];
+if (d.hol) body = '<div class="none">' + esc(d.hol.reason || '휴일') + '</div>';
+else if (!d.school) body = '<div class="none">근무 없음</div>';
+else if (!neisLink(d.school)) body = '<div class="none">나이스 연결 안 됨</div>';
+else if (errors[d.school]) body = '<div class="none" style="color:var(--danger)">' + esc(errors[d.school]) + '</div>';
+else if (!meal) body = '<div class="none">급식 정보 없음</div>';
+else body = '<ul>' + meal.dishes.map(function(x){
+return '<li>' + esc(x.name) + (x.allergy ? '<span class="al">' + esc(x.allergy) + '</span>' : '') + '</li>';
+}).join('') + '</ul>' + (meal.cal ? '<div class="kcal">' + esc(meal.cal) + '</div>' : '');
+return '<div class="meal-day' + (d.ds === state.today ? ' today' : '') + '">' + head + body + '</div>';
+}).join('') + '</div></div>';
+}
+
+/* ----- 수행평가 현황 : 과제별 채점 진행률 · 서명 미확인 ----- */
+async function dashLoadEval(){
+const box = document.getElementById('dashEval');
+box.innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>';
+try {
+const res = await Promise.all([
+sb.from('eval_tasks').select('id,school,title,published,eval_items(id)').eq('school_year', settings.year).order('school').order('id').then(must),
+fetchAll(function(){ return sb.from('eval_students').select('id,school').eq('school_year', settings.year).order('id'); })
+]);
+const tasks = res[0], students = res[1];
+if (!tasks.length){ box.innerHTML = dashMsg(settings.year + '학년도에 등록된 평가 기준이 없습니다.'); return; }
+const itemIds = [], itemTask = {};
+tasks.forEach(function(t){ (t.eval_items || []).forEach(function(i){ itemIds.push(i.id); itemTask[i.id] = t.id; }); });
+const scores = itemIds.length ? await fetchAll(function(){
+return sb.from('eval_scores').select('student_id,item_id').in('item_id', itemIds).order('id');
+}) : [];
+const cnt = {}; // task|student -> 채점한 요소 수
+scores.forEach(function(s){ const k = itemTask[s.item_id] + '|' + s.student_id; cnt[k] = (cnt[k] || 0) + 1; });
+const bySchool = {};
+students.forEach(function(s){ (bySchool[s.school] = bySchool[s.school] || []).push(s.id); });
+// 공개 과제가 있는 학교만 서명 확인
+const signSchools = [];
+tasks.forEach(function(t){ if (t.published && signSchools.indexOf(t.school) < 0) signSchools.push(t.school); });
+const unsigned = {};
+await Promise.all(signSchools.map(function(sc){
+return sb.rpc('eval_signature_list', { p_year: settings.year, p_school: sc }).then(must).then(function(rows){
+unsigned[sc] = (rows || []).filter(function(r){ return (r.current || []).length && !(r.signed_at && r.matches); }).length;
+}).catch(function(){});
+}));
+box.innerHTML = tasks.map(function(t){
+const ids = bySchool[t.school] || [], need = (t.eval_items || []).length;
+const done = need ? ids.filter(function(id){ return (cnt[t.id + '|' + id] || 0) >= need; }).length : 0;
+const pct = ids.length ? Math.round(done / ids.length * 100) : 0;
+const tags = [];
+tags.push('채점 ' + done + ' / ' + ids.length + '명');
+if (!t.published) tags.push('학생 미공개');
+else if (unsigned[t.school]) tags.push('<b style="color:var(--warn)">' + esc(t.school) + ' 서명 미확인 ' + unsigned[t.school] + '명</b>');
+return '<div class="ev-prog"><div class="t"><span>' + chip(t.school) + ' ' + esc(t.title) + '</span><b>' + pct + '%</b></div>' +
+'<div class="pbar"><i style="width:' + pct + '%"></i></div><div class="s">' + tags.join(' · ') + '</div></div>';
+}).join('');
+} catch (e) { box.innerHTML = dashErr(e); }
+}
+
 document.addEventListener('DOMContentLoaded', function(){
 document.getElementById('evStudentLink').href = new URL('student.html', location.href).href;
 });
