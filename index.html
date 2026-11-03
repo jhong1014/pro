@@ -45,6 +45,35 @@
 --bg-a:#e2e8f0; --bg-b:#f1f5f9; --bg-c:#e2e8f0; --bg-base:#f8fafc;
 --radius:8px; --hero-radius:10px;
 }
+/* 단색 (깔끔) : 그라데이션 · 그림자 없이 한 가지 색 (대시보드 시안 스타일) */
+:root[data-theme="flat"]{
+--primary:#2457d6; --primary-2:#2457d6; --accent:#2457d6; --primary-rgb:36,87,214;
+--primary-soft:#e8eefc; --primary-ink:#1a3fa0; --primary-line:#c3d1f5;
+--bg-a:#f4f6f9; --bg-b:#f4f6f9; --bg-c:#f4f6f9; --bg-base:#f4f6f9;
+--border:#e3e7ed; --shadow:none;
+}
+:root[data-theme="flat"] body, :root[data-theme="flat"] .login-back{background:#f4f6f9}
+:root[data-theme="flat"] .hero{background:#fff; color:var(--fg); border:1px solid var(--border)}
+:root[data-theme="flat"] .hero .sub{color:var(--muted); opacity:1}
+:root[data-theme="flat"] .hero .today-badge{background:#f4f6f9; border-color:var(--border); color:#374151}
+:root[data-theme="flat"] .hero .dday-badge{background:#fdeee0; border-color:#fdeee0; color:#9a3412}
+:root[data-theme="flat"] .logout-btn{background:#fff; color:#374151; border-color:#d1d5db}
+:root[data-theme="flat"] .logout-btn:hover{background:#f8fafc}
+:root[data-theme="flat"] .tab.active{background:var(--primary); box-shadow:none}
+:root[data-theme="flat"] .mode.active{background:var(--primary); border-color:var(--primary)}
+:root[data-theme="flat"] .btn{background:var(--primary); box-shadow:none}
+:root[data-theme="flat"] .btn:hover{background:var(--primary-ink); box-shadow:none; transform:none}
+:root[data-theme="flat"] .btn.ghost{background:#fff; color:#334155}
+:root[data-theme="flat"] .btn.ghost:hover{background:#f8fafc}
+:root[data-theme="flat"] .btn.danger{background:#dc2626}
+:root[data-theme="flat"] .btn.ok{background:#059669}
+:root[data-theme="flat"] .btn.warn{background:#d97706}
+:root[data-theme="flat"] .kpi.p{background:var(--primary-soft)}
+:root[data-theme="flat"] .kpi.o{background:#ecfdf5}
+:root[data-theme="flat"] .kpi.w{background:#fffbeb}
+:root[data-theme="flat"] .dash-clock{background:#1f2a44}
+:root[data-theme="flat"] .pbar i{background:var(--primary)}
+:root[data-theme="flat"] .cell.today, :root[data-theme="flat"] .cell:hover{box-shadow:none}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -1255,7 +1284,8 @@ const THEMES = [
 { id: 'ocean', name: '바다', colors: ['#0284c7', '#0891b2', '#14b8a6'] },
 { id: 'forest', name: '숲', colors: ['#059669', '#16a34a', '#84cc16'] },
 { id: 'sunset', name: '노을', colors: ['#ea580c', '#e11d48', '#f59e0b'] },
-{ id: 'mono', name: '모노', colors: ['#334155', '#0f172a', '#64748b'] }
+{ id: 'mono', name: '모노', colors: ['#334155', '#0f172a', '#64748b'] },
+{ id: 'flat', name: '단색 (깔끔)', colors: ['#2457d6'], swatch: 'linear-gradient(90deg,#f4f6f9 0 34%,#2457d6 34% 67%,#1f2a44 67%)' }
 ];
 let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet', bell: {}, neis: {}, mealDays: {} };
 
@@ -1569,7 +1599,7 @@ document.getElementById('setDdayLabel').value = (settings.dday || {}).label || '
 document.getElementById('setDdayDate').value = (settings.dday || {}).date || '';
 document.getElementById('setThemes').innerHTML = THEMES.map(function(t){
 return '<button type="button" class="theme-opt' + (t.id === (settings.theme || 'violet') ? ' active' : '') + '" onclick="pickTheme(\'' + t.id + '\')">' +
-'<div class="sw" style="background:linear-gradient(135deg,' + t.colors.join(',') + ')"></div>' +
+'<div class="sw" style="background:' + (t.swatch || 'linear-gradient(135deg,' + t.colors.join(',') + ')') + '"></div>' +
 '<div class="nm">' + esc(t.name) + '</div></button>';
 }).join('');
 renderBellForm();
