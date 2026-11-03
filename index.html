@@ -607,7 +607,7 @@ body{padding:12px}
 <div id="dashSched"></div>
 </div>
 <div class="card dash-meal">
-<div class="dash-head"><h2>급식 <span class="neis-tag">NEIS</span></h2><span class="muted" style="font-size:12px">요일마다 그날 근무학교 식단 · 작은 숫자 = 알레르기 번호</span></div>
+<div class="dash-head"><h2>급식 <span class="neis-tag">NEIS</span></h2><span class="muted" style="font-size:12px">설정 › 요일별 급식 기준 · 작은 숫자 = 알레르기 번호</span></div>
 <div id="dashMeal"></div>
 </div>
 </div>
@@ -662,6 +662,9 @@ body{padding:12px}
 <h3>나이스 연동 (학사일정 · 급식)</h3>
 <div class="hint" style="margin-bottom:8px">내 학교 이름마다 나이스의 학교를 한 번 연결하면 대시보드에 학사일정과 급식이 나옵니다. 인증키는 서버(Supabase Edge Function <b>neis</b>)에만 저장됩니다.</div>
 <div id="neisList"></div>
+<h3>요일별 급식</h3>
+<div class="hint" style="margin-bottom:8px">대시보드 급식 칸에 요일마다 어느 학교 식단을 보여줄지 정합니다. "급식 안 함"으로 둔 요일은 급식 칸에서 빠집니다.</div>
+<div id="mealDaysList"></div>
 </div>
 <!-- 수행평가 : 학교 선택 -->
 <div id="evalBar" class="card" style="display:none">
@@ -1241,6 +1244,7 @@ document.addEventListener('DOMContentLoaded', async function(){
 · theme : 화면 테마
 · bell  : 학교별 시정표 { 학교: {start, len, brk, lunchAfter, lunch, midAfter, mid} }
 · neis_schools : 나이스 학교 연결 { 학교: {atpt, code, name, office} }
+· meal_days : 요일별 급식 { '1'~'5': {mode: auto|off|school, school: {atpt, code, name, office}} }
 ========================================================= */
 const THEMES = [
 { id: 'violet', name: '기본 (보라)', colors: ['#4f46e5', '#7c3aed', '#db2777'] },
@@ -1249,7 +1253,7 @@ const THEMES = [
 { id: 'sunset', name: '노을', colors: ['#ea580c', '#e11d48', '#f59e0b'] },
 { id: 'mono', name: '모노', colors: ['#334155', '#0f172a', '#64748b'] }
 ];
-let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet', bell: {}, neis: {} };
+let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet', bell: {}, neis: {}, mealDays: {} };
 
 let state = {
 view: 'dash',
@@ -1360,6 +1364,7 @@ else if (r.key === 'dday') settings.dday = r.value || {};
 else if (r.key === 'theme') settings.theme = r.value || 'violet';
 else if (r.key === 'bell') settings.bell = r.value || {};
 else if (r.key === 'neis_schools') settings.neis = r.value || {};
+else if (r.key === 'meal_days') settings.mealDays = r.value || {};
 });
 }
 async function saveSetting(key, value){
@@ -1565,6 +1570,7 @@ return '<button type="button" class="theme-opt' + (t.id === (settings.theme || '
 }).join('');
 renderBellForm();
 renderNeisSettings();
+renderMealDays();
 }
 async function changeYear(){
 const sel = document.getElementById('setYear');
@@ -3220,15 +3226,16 @@ html += '<tr><td colspan="3"><div class="neis-search">' +
 html += '</tbody></table>';
 box.innerHTML = html;
 }
-function neisResultsHtml(){
-if (neisUi.loading) return '<span class="spinner"></span>검색 중...';
-if (neisUi.error) return '<span style="color:var(--danger); font-size:13px">' + esc(neisUi.error) + '</span>';
-if (!neisUi.results) return '<span class="hint">예: 정식 이름 "서울OO초등학교"의 일부를 넣고 검색하세요.</span>';
-if (!neisUi.results.length) return '<span class="hint">검색 결과가 없습니다.</span>';
-return neisUi.results.map(function(r, j){
+function neisResultsHtml(ui, pickFn){
+ui = ui || neisUi; pickFn = pickFn || 'neisPick';
+if (ui.loading) return '<span class="spinner"></span>검색 중...';
+if (ui.error) return '<span style="color:var(--danger); font-size:13px">' + esc(ui.error) + '</span>';
+if (!ui.results) return '<span class="hint">예: 정식 이름 "서울OO초등학교"의 일부를 넣고 검색하세요.</span>';
+if (!ui.results.length) return '<span class="hint">검색 결과가 없습니다.</span>';
+return ui.results.map(function(r, j){
 return '<div class="neis-result"><div><b>' + esc(r.name) + '</b> <span class="muted">' + esc(r.office || '') + ' · ' + esc(r.kind || '') + '</span>' +
 '<div class="muted" style="font-size:12px">' + esc(r.addr || '') + '</div></div>' +
-'<button class="btn sm" onclick="neisPick(' + j + ')">연결</button></div>';
+'<button class="btn sm" onclick="' + pickFn + '(' + j + ')">' + (pickFn === 'neisPick' ? '연결' : '선택') + '</button></div>';
 }).join('');
 }
 function neisOpenSearch(i){
@@ -3266,6 +3273,81 @@ if (!confirm(name + '의 나이스 연결을 해제할까요?')) return;
 const next = Object.assign({}, settings.neis || {});
 delete next[name];
 if (await neisSaveLinks(next, '연결을 해제했습니다.')) renderNeisSettings();
+}
+
+/* ----- 설정 화면 : 요일별 급식 ----- */
+const MEAL_DOWS = [1, 2, 3, 4, 5];
+let mealUi = { open: 0, results: null, loading: false, error: '', query: '' };
+function mealDayOf(dow){ return (settings.mealDays || {})[String(dow)] || { mode: 'auto' }; }
+function renderMealDays(){
+const box = document.getElementById('mealDaysList');
+let html = '<table><thead><tr><th style="width:70px">요일</th><th style="width:190px">급식</th><th>학교</th></tr></thead><tbody>';
+MEAL_DOWS.forEach(function(dow){
+const md = mealDayOf(dow);
+const pending = mealUi.open === dow && md.mode !== 'school';
+const mode = pending ? 'school' : md.mode;
+html += '<tr><td><b>' + ['일','월','화','수','목','금','토'][dow] + '요일</b></td><td>' +
+'<select onchange="mealDayMode(' + dow + ', this.value)">' +
+[['auto', '그날 근무학교'], ['school', '다른 학교 지정'], ['off', '급식 안 함']].map(function(o){
+return '<option value="' + o[0] + '"' + (mode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+}).join('') + '</select></td><td>';
+if (mode === 'off') html += '<span class="muted">대시보드에 표시하지 않음</span>';
+else if (mode === 'auto') html += '<span class="muted">그날 수업이 가장 많은 학교 (나이스 연결된 학교)</span>';
+else html += (md.mode === 'school' && md.school ? esc(md.school.name) + ' <span class="muted" style="font-size:12px">' + esc(md.school.office || '') + '</span> ' : '<span class="muted">학교를 검색해 고르세요</span> ') +
+'<button class="btn ghost sm" onclick="mealOpenSearch(' + dow + ')">학교 검색</button>';
+html += '</td></tr>';
+if (mealUi.open === dow){
+html += '<tr><td colspan="3"><div class="neis-search">' +
+'<div class="flex" style="align-items:center"><input type="text" id="mealQuery" value="' + esc(mealUi.query) + '" placeholder="예: 장성중" onkeydown="if(event.key===\'Enter\')mealSearch()" style="flex:1; min-width:160px"/>' +
+'<button class="btn sm" onclick="mealSearch()">검색</button><button class="btn ghost sm" onclick="mealCloseSearch()">닫기</button></div>' +
+'<div style="margin-top:8px">' + neisResultsHtml(mealUi, 'mealPick') + '</div></div></td></tr>';
+}
+});
+box.innerHTML = html + '</tbody></table>';
+}
+async function mealSaveDays(next, okMsg){
+try { await saveSetting('meal_days', next); }
+catch (e) { toast(e.message, 'err'); return false; }
+settings.mealDays = next;
+toast(okMsg, 'ok');
+return true;
+}
+async function mealDayMode(dow, mode){
+const label = ['일','월','화','수','목','금','토'][dow] + '요일';
+if (mode === 'school'){
+const md = mealDayOf(dow);
+if (md.mode === 'school' && md.school){ renderMealDays(); return; }
+mealOpenSearch(dow); // 학교를 고르면 저장
+return;
+}
+const next = Object.assign({}, settings.mealDays || {});
+next[String(dow)] = { mode: mode };
+if (mealUi.open === dow) mealUi.open = 0;
+await mealSaveDays(next, label + ' 급식: ' + (mode === 'off' ? '급식 안 함' : '그날 근무학교'));
+renderMealDays();
+}
+function mealOpenSearch(dow){
+mealUi = { open: dow, results: null, loading: false, error: '', query: '' };
+renderMealDays();
+const el = document.getElementById('mealQuery');
+if (el) el.focus();
+}
+function mealCloseSearch(){ mealUi.open = 0; renderMealDays(); }
+async function mealSearch(){
+const q = ((document.getElementById('mealQuery') || {}).value || '').trim();
+mealUi.query = q;
+if (q.length < 2){ mealUi.error = '학교 이름을 2글자 이상 입력하세요.'; renderMealDays(); return; }
+mealUi.loading = true; mealUi.error = ''; renderMealDays();
+try { mealUi.results = await neisCall({ type: 'school', name: q }); }
+catch (e) { mealUi.error = e.message; mealUi.results = null; }
+mealUi.loading = false;
+renderMealDays();
+}
+async function mealPick(j){
+const dow = mealUi.open, r = mealUi.results[j];
+const next = Object.assign({}, settings.mealDays || {});
+next[String(dow)] = { mode: 'school', school: { atpt: r.atpt, code: r.code, name: r.name, office: r.office } };
+if (await mealSaveDays(next, ['일','월','화','수','목','금','토'][dow] + '요일 급식: ' + r.name)){ mealUi.open = 0; renderMealDays(); }
 }
 
 /* =========================================================
@@ -3594,42 +3676,55 @@ return '<div class="sched-item"><span class="sched-dd' + (x.off ? ' off' : '') +
 box.innerHTML = html;
 }
 
-/* ----- 나이스 급식 : 요일마다 그날 수업이 가장 많은 학교 ----- */
+/* ----- 나이스 급식 : 설정의 요일별 급식 (기본 = 그날 수업이 가장 많은 학교) ----- */
 async function dashLoadMeals(res, start){
 const box = document.getElementById('dashMeal');
 const end = addDays(start, 4);
 const days = [];
+let anyLink = false;
 for (let i = 0; i < 5; i++){
-const ds = addDays(start, i), cnt = {};
+const ds = addDays(start, i), dow = parseD(ds).getDay(), md = mealDayOf(dow);
+if (md.mode === 'off') continue; // 급식 안 하는 요일은 빼기
+const hol = findHoliday(ds, res.holidays || []);
+let label = '', link = null;
+if (md.mode === 'school' && md.school && md.school.code){
+label = md.school.name; link = md.school;
+} else {
+const cnt = {};
 (res.records || []).forEach(function(r){ if (r.date === ds && r.school) cnt[r.school] = (cnt[r.school] || 0) + 1; });
-const school = Object.keys(cnt).sort(function(a, b){ return cnt[b] - cnt[a]; })[0] || '';
-days.push({ ds: ds, school: school, hol: findHoliday(ds, res.holidays || []) });
+label = Object.keys(cnt).sort(function(a, b){ return cnt[b] - cnt[a]; })[0] || '';
+link = label ? neisLink(label) : null;
 }
-const linked = neisLinkedSchools();
-if (!linked.length){ box.innerHTML = needNeisHtml('급식'); return; }
-const need = [];
-days.forEach(function(d){ if (d.school && neisLink(d.school) && need.indexOf(d.school) < 0) need.push(d.school); });
+if (link) anyLink = true;
+days.push({ ds: ds, label: label, link: link, hol: hol });
+}
+if (!days.length){ box.innerHTML = dashMsg('설정에서 모든 요일을 "급식 안 함"으로 두었습니다.'); return; }
+if (!anyLink && !neisLinkedSchools().length){ box.innerHTML = needNeisHtml('급식'); return; }
+const linkKey = function(l){ return l.atpt + '|' + l.code; };
+const need = {};
+days.forEach(function(d){ if (d.link && !d.hol) need[linkKey(d.link)] = d.link; });
 const meals = {}, errors = {};
-await Promise.all(need.map(function(sc){
-const l = neisLink(sc);
+await Promise.all(Object.keys(need).map(function(k){
+const l = need[k];
 return neisCall({ type: 'meal', atpt: l.atpt, code: l.code, from: ymd(start), to: ymd(end) }).then(function(rows){
 rows.forEach(function(r){
-const k = sc + '|' + ymdToDs(r.date);
+const mk = k + '|' + ymdToDs(r.date);
 // 중식을 먼저, 없으면 처음 나온 끼니
-if (!meals[k] || (r.kind === '중식' && meals[k].kind !== '중식')) meals[k] = r;
+if (!meals[mk] || (r.kind === '중식' && meals[mk].kind !== '중식')) meals[mk] = r;
 });
-}).catch(function(e){ errors[sc] = e.message; });
+}).catch(function(e){ errors[k] = e.message; });
 }));
 if (dash.week !== start) return;
-box.innerHTML = '<div class="meal-scroll"><div class="meal-grid">' + days.map(function(d){
+box.innerHTML = '<div class="meal-scroll"><div class="meal-grid" style="grid-template-columns:repeat(' + days.length + ', minmax(120px, 1fr)); min-width:' + (days.length * 124) + 'px">' + days.map(function(d){
 const dt = parseD(d.ds);
-const head = '<div class="md-head"><span>' + dowLabel(dt) + ' ' + (dt.getMonth() + 1) + '/' + dt.getDate() + (d.ds === state.today ? ' · 오늘' : '') + '</span>' + (d.school ? chip(d.school) : '') + '</div>';
+const head = '<div class="md-head"><span>' + dowLabel(dt) + ' ' + (dt.getMonth() + 1) + '/' + dt.getDate() + (d.ds === state.today ? ' · 오늘' : '') + '</span>' + (d.label ? chip(d.label) : '') + '</div>';
 let body;
-const meal = meals[d.school + '|' + d.ds];
+const k = d.link ? linkKey(d.link) : '';
+const meal = d.link ? meals[k + '|' + d.ds] : null;
 if (d.hol) body = '<div class="none">' + esc(d.hol.reason || '휴일') + '</div>';
-else if (!d.school) body = '<div class="none">근무 없음</div>';
-else if (!neisLink(d.school)) body = '<div class="none">나이스 연결 안 됨</div>';
-else if (errors[d.school]) body = '<div class="none" style="color:var(--danger)">' + esc(errors[d.school]) + '</div>';
+else if (!d.label) body = '<div class="none">근무 없음</div>';
+else if (!d.link) body = '<div class="none">나이스 연결 안 됨</div>';
+else if (errors[k]) body = '<div class="none" style="color:var(--danger)">' + esc(errors[k]) + '</div>';
 else if (!meal) body = '<div class="none">급식 정보 없음</div>';
 else body = '<ul>' + meal.dishes.map(function(x){
 return '<li>' + esc(x.name) + (x.allergy ? '<span class="al">' + esc(x.allergy) + '</span>' : '') + '</li>';
