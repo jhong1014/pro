@@ -503,6 +503,15 @@ display:flex; flex-direction:column; align-items:center; justify-content:center;
 .meal-day .kcal{margin-top:auto; font-size:11px; color:var(--muted)}
 .meal-day .none{font-size:12px; color:var(--muted)}
 .ev-prog{margin-bottom:12px}
+.ev-link{display:block; width:100%; text-align:left; background:none; border:1px solid transparent; border-radius:10px;
+padding:8px 10px; margin:0 0 4px; cursor:pointer; font:inherit; color:inherit}
+.ev-link:hover, .ev-link:focus-visible{background:#f8fafc; border-color:var(--border)}
+.ev-link .go{font-size:11px; color:var(--primary-ink); font-weight:700; margin-left:6px; opacity:.6; transition:opacity .15s}
+.ev-link:hover .go, .ev-link:focus-visible .go{opacity:1}
+.more-list{max-height:360px; overflow-y:auto; margin-top:2px; padding-right:2px}
+.more-btn{display:block; width:100%; margin-top:6px; padding:8px; font:inherit; font-size:13px; font-weight:700;
+color:#475569; background:#f8fafc; border:1px solid var(--border); border-radius:10px; cursor:pointer}
+.more-btn:hover{background:#f1f5f9}
 .ev-prog .t{display:flex; justify-content:space-between; gap:8px; font-size:14px}
 .ev-prog .s{font-size:12px; color:var(--muted)}
 .pbar{height:8px; background:#eef2f7; border-radius:999px; overflow:hidden; margin:6px 0 4px}
@@ -3502,7 +3511,12 @@ if (await mealSaveDays(next, ['일','월','화','수','목','금','토'][dow] + 
    - 오늘 근무학교 · 시계(현재 교시) · 미니 달력 · 주간 시간표
    - 나이스 학사일정 · 급식, 할 일, 수행평가 현황
 ========================================================= */
-const dash = { week: '', month: '', todayRes: null, slots: [], timer: null, sched: [], schedTabs: [], schedFilter: '', calEvents: {}, records: [] };
+const dash = { week: '', month: '', todayRes: null, slots: [], timer: null, sched: [], schedTabs: [], schedFilter: '', schedMore: false, calEvents: {}, records: [], evalTasks: [], evalMore: false };
+const DASH_SCHED_SHOW = 5, DASH_EVAL_SHOW = 3;
+// 더보기 버튼 : 남은 개수 / 접기
+function moreBtn(open, rest, fn){
+return '<button type="button" class="more-btn" onclick="' + fn + '()">' + (open ? '접기 ▲' : '더보기 (' + rest + '개) ▼') + '</button>';
+}
 function dashThisWeek(){
 // 주말에는 다음 주를 보여줌
 const d = parseD(state.today), dow = d.getDay();
@@ -3804,16 +3818,17 @@ renderDashSchedule();
 }
 function dashSchedPick(i){
 dash.schedFilter = dash.schedTabs[i] || '';
+dash.schedMore = false;
 document.querySelectorAll('#dashSchedTabs button').forEach(function(b, j){ b.classList.toggle('active', j === i); });
 renderDashSchedule();
 }
 function renderDashSchedule(){
 const box = document.getElementById('dashSched');
-const items = dash.sched.filter(function(x){ return !dash.schedFilter || x.school === dash.schedFilter; }).slice(0, 12);
+const items = dash.sched.filter(function(x){ return !dash.schedFilter || x.school === dash.schedFilter; });
 let html = '';
 (dash.schedErrors || []).forEach(function(m){ html += '<div class="hint" style="color:var(--danger)">' + esc(m) + '</div>'; });
 if (!items.length){ box.innerHTML = html + dashMsg('앞으로 10주 동안 학사일정이 없습니다.'); return; }
-html += items.map(function(x){
+function row(x){
 const d0 = daysBetween(x.start, state.today);
 const dd = d0 > 0 ? 'D-' + d0 : (d0 === 0 ? 'D-DAY' : '진행 중');
 const sd = parseD(x.start), ed = parseD(x.end);
@@ -3822,9 +3837,16 @@ if (x.end !== x.start) when += ' ~ ' + (ed.getMonth() + 1) + '/' + ed.getDate() 
 return '<div class="sched-item"><span class="sched-dd' + (x.off ? ' off' : '') + '">' + dd + '</span>' +
 '<div class="sched-body"><b>' + esc(x.name) + '</b>' + (x.off ? '<span class="sched-off">휴업일</span>' : '') +
 '<div class="when">' + when + '</div></div>' + chip(x.school) + '</div>';
-}).join('');
+}
+html += items.slice(0, DASH_SCHED_SHOW).map(row).join('');
+const rest = items.slice(DASH_SCHED_SHOW);
+if (rest.length){
+if (dash.schedMore) html += '<div class="more-list">' + rest.map(row).join('') + '</div>';
+html += moreBtn(dash.schedMore, rest.length, 'dashSchedToggle');
+}
 box.innerHTML = html;
 }
+function dashSchedToggle(){ dash.schedMore = !dash.schedMore; renderDashSchedule(); }
 
 /* ----- 나이스 급식 : 설정의 요일별 급식 (기본 = 그날 수업이 가장 많은 학교) ----- */
 async function dashLoadMeals(res, start){
@@ -4036,7 +4058,8 @@ return sb.rpc('eval_signature_list', { p_year: settings.year, p_school: sc }).th
 unsigned[sc] = (rows || []).filter(function(r){ return (r.current || []).length && !(r.signed_at && r.matches); }).length;
 }).catch(function(){});
 }));
-box.innerHTML = tasks.map(function(t){
+dash.evalTasks = tasks;
+dash.evalHtml = tasks.map(function(t, i){
 const ids = bySchool[t.school] || [], need = (t.eval_items || []).length;
 const done = need ? ids.filter(function(id){ return (cnt[t.id + '|' + id] || 0) >= need; }).length : 0;
 const pct = ids.length ? Math.round(done / ids.length * 100) : 0;
@@ -4044,10 +4067,37 @@ const tags = [];
 tags.push('채점 ' + done + ' / ' + ids.length + '명');
 if (!t.published) tags.push('학생 미공개');
 else if (unsigned[t.school]) tags.push('<b style="color:var(--warn)">' + esc(t.school) + ' 서명 미확인 ' + unsigned[t.school] + '명</b>');
-return '<div class="ev-prog"><div class="t"><span>' + chip(t.school) + ' ' + esc(t.title) + '</span><b>' + pct + '%</b></div>' +
-'<div class="pbar"><i style="width:' + pct + '%"></i></div><div class="s">' + tags.join(' · ') + '</div></div>';
-}).join('');
+return '<button type="button" class="ev-prog ev-link" onclick="dashGoScore(' + i + ')" title="점수 입력 화면으로">' +
+'<div class="t"><span>' + chip(t.school) + ' ' + esc(t.title) + '<span class="go">점수 입력 ›</span></span><b>' + pct + '%</b></div>' +
+'<div class="pbar"><i style="width:' + pct + '%"></i></div><div class="s">' + tags.join(' · ') + '</div></button>';
+});
+renderDashEval();
 } catch (e) { box.innerHTML = dashErr(e); }
+}
+function renderDashEval(){
+const list = dash.evalHtml || [];
+let html = list.slice(0, DASH_EVAL_SHOW).join('');
+const rest = list.slice(DASH_EVAL_SHOW);
+if (rest.length){
+if (dash.evalMore) html += '<div class="more-list">' + rest.join('') + '</div>';
+html += moreBtn(dash.evalMore, rest.length, 'dashEvalToggle');
+}
+document.getElementById('dashEval').innerHTML = html;
+}
+function dashEvalToggle(){ dash.evalMore = !dash.evalMore; renderDashEval(); }
+// 수행평가 현황 항목 → 그 학교 · 그 과제의 점수 입력 화면
+function dashGoScore(i){
+const t = dash.evalTasks[i];
+if (!t) return;
+if (ev.school !== t.school){
+ev.school = t.school;
+try { localStorage.setItem('evSchool', t.school); } catch (e) {}
+closeTaskEditor();
+if (ev.schools.length) applyEvalSchools();
+}
+state.scoreTask = t.id;
+state.modeView.eval = 'escore';
+goMode('eval');
 }
 
 document.addEventListener('DOMContentLoaded', function(){
