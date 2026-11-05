@@ -4061,10 +4061,19 @@ unsigned[sc] = (rows || []).filter(function(r){ return (r.current || []).length 
 dash.evalTasks = tasks;
 dash.evalHtml = tasks.map(function(t, i){
 const ids = bySchool[t.school] || [], need = (t.eval_items || []).length;
-const done = need ? ids.filter(function(id){ return (cnt[t.id + '|' + id] || 0) >= need; }).length : 0;
-const pct = ids.length ? Math.round(done / ids.length * 100) : 0;
+// 진행률 = 입력한 칸 수 / (채점 요소 수 × 학생 수)
+// 예) 5개 요소 · 10명 = 50칸 중 30칸 입력 → 60%
+const total = need * ids.length;
+let filled = 0, done = 0;
+ids.forEach(function(id){
+const c = Math.min(cnt[t.id + '|' + id] || 0, need);
+filled += c;
+if (need && c >= need) done++;
+});
+const pct = total ? Math.round(filled / total * 100) : 0;
 const tags = [];
-tags.push('채점 ' + done + ' / ' + ids.length + '명');
+tags.push('입력 ' + filled + ' / ' + total + '칸');
+tags.push('다 채점한 학생 ' + done + ' / ' + ids.length + '명');
 if (!t.published) tags.push('학생 미공개');
 else if (unsigned[t.school]) tags.push('<b style="color:var(--warn)">' + esc(t.school) + ' 서명 미확인 ' + unsigned[t.school] + '명</b>');
 return '<button type="button" class="ev-prog ev-link" onclick="dashGoScore(' + i + ')" title="점수 입력 화면으로">' +
