@@ -20,8 +20,8 @@ begin
   insert into public.eval_students (school_year, school, class_name, number, name, access_code)
   values (2026, '테스트중학교', '1-1', 3, '이준호', '333333') returning id into v_s3;
 
-  insert into public.eval_tasks (school_year, school, title, target, weight_pct, published)
-  values (2026, '테스트중학교', '가. 생활 속 인공지능 찾아 사례 조사 및 발표', '1학년', 30, true)
+  insert into public.eval_tasks (school_year, semester, school, title, target, weight_pct, published)
+  values (2026, 2, '테스트중학교', '가. 생활 속 인공지능 찾아 사례 조사 및 발표', '1학년', 30, true)
   returning id into v_task;
 
   -- 내용의 적절성 (30)

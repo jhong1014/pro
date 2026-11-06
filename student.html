@@ -74,6 +74,8 @@ background:#fff; border:1px dashed var(--border-strong); border-radius:12px;
 .toc{display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 12px; margin-top:6px;
 border:1px solid var(--border); border-radius:10px; color:var(--fg); text-decoration:none; font-size:14px}
 .toc b{color:var(--primary); white-space:nowrap}
+.sem-tabs{display:flex; gap:8px; margin-bottom:12px}
+.sem-tabs .btn{flex:1; margin:0}
 .toc small{color:var(--muted); font-weight:600}
 html{scroll-behavior:smooth}
 .card[id^="task"]{scroll-margin-top:12px}
@@ -160,8 +162,9 @@ if (res.error){ showErr('반 목록을 불러오지 못했습니다.'); return; 
 sel.innerHTML = '<option value="">선택</option>' + options(texts(res.data));
 }
 
-// 조회에 쓴 학교 · 반 · 번호 · 확인코드 (서명 제출 때 다시 확인용, 화면을 닫으면 사라짐)
+// 조회에 쓴 학교 · 반 · 번호 · 확인코드 (서명 제출 · 학기 바꾸기 때 다시 확인용, 화면을 닫으면 사라짐)
 let cred = null;
+let curSemester = null;
 async function lookup(ev){
 ev.preventDefault();
 showErr('');
@@ -181,15 +184,28 @@ document.getElementById('code').value = '';
 cred = c;
 render(res.data);
 }
+// 학기 바꾸기 : 같은 확인코드로 그 학기 결과를 다시 불러옴
+async function pickSemester(sem){
+if (!cred || sem === curSemester) return;
+const res = await sb.rpc('student_eval_view', Object.assign({ p_semester: sem }, cred));
+if (res.error || res.data.error){ alert(res.error ? '조회 중 오류가 발생했습니다.' : res.data.error); return; }
+render(res.data);
+}
 
 function render(d){
 const s = d.student;
 document.getElementById('loginCard').style.display = 'none';
 document.getElementById('outBtn').style.display = '';
-document.getElementById('who').textContent = (s.school_year ? s.school_year + '학년도 · ' : '') + s.school + ' ' + s.class_name + ' ' + s.number + '번 ' + s.name;
+curSemester = d.semester || null;
+document.getElementById('who').textContent = (s.school_year ? s.school_year + '학년도 ' + (d.semester ? d.semester + '학기 ' : '') + '· ' : '') + s.school + ' ' + s.class_name + ' ' + s.number + '번 ' + s.name;
 const box = document.getElementById('result');
+// 결과가 있는 학기가 둘이면 학기 선택 버튼
+const sems = d.semesters || [];
+const semTabs = sems.length > 1 ? '<div class="sem-tabs">' + sems.map(function(n){
+return '<button type="button" class="btn' + (n === d.semester ? '' : ' ghost') + '" onclick="pickSemester(' + Number(n) + ')">' + Number(n) + '학기</button>';
+}).join('') + '</div>' : '';
 if (!d.tasks.length){
-box.innerHTML = '<div class="empty">아직 공개된 수행평가 결과가 없습니다.</div>';
+box.innerHTML = semTabs + '<div class="empty">아직 공개된 수행평가 결과가 없습니다.</div>';
 return;
 }
 // 과제가 여럿이면 맨 위에 목록을 두고, 누르면 해당 과제로 이동 (아래로 계속 스크롤해도 모두 보임)
@@ -200,7 +216,7 @@ d.tasks.map(function(t, i){
 return '<a class="toc" href="#task' + i + '"><span>' + esc(t.title) + '</span><b>' + num(t.total) + '<small> / ' + num(t.max_total) + '</small></b></a>';
 }).join('') + '</div>';
 }
-box.innerHTML = toc + d.tasks.map(function(t, idx){
+box.innerHTML = semTabs + toc + d.tasks.map(function(t, idx){
 const pending = t.items.some(function(i){ return i.my_score == null; });
 let html = '<div class="card" id="task' + idx + '"><div class="task-head"><div>' +
 '<h2>' + esc(t.title) + '</h2>' +
@@ -299,7 +315,7 @@ const btn = document.getElementById('signBtn');
 const err = document.getElementById('signErr');
 err.textContent = '';
 btn.disabled = true;
-const res = await sb.rpc('student_eval_sign', Object.assign({ p_signature: padImage() }, cred));
+const res = await sb.rpc('student_eval_sign', Object.assign({ p_signature: padImage(), p_semester: curSemester }, cred));
 if (res.error || res.data.error){
 err.textContent = res.error ? '제출 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.' : res.data.error;
 btn.disabled = false;
@@ -310,7 +326,7 @@ document.getElementById('signCard').scrollIntoView({ behavior: 'smooth', block: 
 }
 
 function logout(){
-cred = null;
+cred = null; curSemester = null;
 document.getElementById('result').innerHTML = '';
 document.getElementById('loginCard').style.display = '';
 document.getElementById('outBtn').style.display = 'none';
