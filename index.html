@@ -717,9 +717,11 @@ body{padding:12px}
 <h3>학년도</h3>
 <div class="row">
 <label class="field">학년도<select id="setYear" onchange="changeYear()"></select></label>
+<label class="field">학기<select id="setSemester" onchange="changeSemester()"><option value="1">1학기</option><option value="2">2학기</option></select></label>
 </div>
 <div class="hint">학년도는 3월 1일 ~ 다음 해 2월 말일입니다. 바꾸면 진도(학교 목록 · 수업시수 · 공휴일 목록)와 수행평가(평가 기준 · 학생 명단 · 점수)가 그 학년도 자료로 바뀝니다.<br>
-학생 조회 화면은 학생의 확인코드로 학년도를 찾아 보여주므로 여기 설정과 상관없이 동작합니다.</div>
+진도 기록과 수행평가(평가 기준 · 점수 · 서명)는 학기마다 따로 입력 · 조회됩니다. 학생 명단은 학년도 단위라 두 학기에 함께 쓰입니다.<br>
+학생 조회 화면은 학생의 확인코드로 학년도를 찾고, 결과가 있는 학기를 골라 볼 수 있어 여기 설정과 상관없이 동작합니다.</div>
 <h3>상단 D-day</h3>
 <div class="row">
 <label class="field">문구<input type="text" id="setDdayLabel" placeholder="예: 겨울방학까지"/></label>
@@ -942,6 +944,7 @@ body{padding:12px}
 <div class="meta" id="cpMeta"></div>
 <div class="row">
 <label class="field">복사할 학년도<select id="cpYear"></select></label>
+<label class="field">복사할 학기<select id="cpSemester"><option value="1">1학기</option><option value="2">2학기</option></select></label>
 <label class="field">복사할 학교<select id="cpSchool"></select></label>
 </div>
 <div class="hint">채점 요소와 채점 기준이 그대로 복사됩니다. 점수는 복사되지 않고, 복사본은 학생 비공개로 시작합니다.</div>
@@ -1011,8 +1014,7 @@ async function fetchAll(makeQuery){
 let _schools = null;
 async function loadSchoolList(){
   if (_schools) return _schools;
-  const yr = yearRange(settings.year);
-const rows = await fetchAll(function(){ return sb.from('records').select('school').gte('date', yr.start).lte('date', yr.end).order('id'); });
+  const rows = await fetchAll(function(){ return sb.from('records').select('school').eq('school_year', settings.year).eq('semester', settings.semester).order('id'); });
   const set = {};
   rows.forEach(function(r){ if (r.school) set[r.school] = true; });
   _schools = Object.keys(set).sort();
@@ -1050,7 +1052,7 @@ const API = {
   },
 
   async getRecords(dateStr, school){
-    let q = sb.from('records').select('*').eq('date', dateStr);
+    let q = sb.from('records').select('*').eq('school_year', settings.year).eq('semester', settings.semester).eq('date', dateStr);
     if (school) q = q.eq('school', school);
     const results = await Promise.all([ q.then(must), loadHolidayList(), loadSchoolList() ]);
     const list = results[0].map(toRec).sort(byPeriod);
@@ -1060,7 +1062,7 @@ const API = {
   async getRecordsRange(s, e, school){
     const results = await Promise.all([
       fetchAll(function(){
-        let q = sb.from('records').select('*').gte('date', s).lte('date', e).order('date').order('id');
+        let q = sb.from('records').select('*').eq('school_year', settings.year).eq('semester', settings.semester).gte('date', s).lte('date', e).order('date').order('id');
         if (school) q = q.eq('school', school);
         return q;
       }),
@@ -1081,7 +1083,7 @@ const API = {
     const end = fmt(new Date(year, month, 0));
     const results = await Promise.all([
       fetchAll(function(){
-        let q = sb.from('records').select('date,school').gte('date', start).lte('date', end).order('id');
+        let q = sb.from('records').select('date,school').eq('school_year', settings.year).eq('semester', settings.semester).gte('date', start).lte('date', end).order('id');
         if (school) q = q.eq('school', school);
         return q;
       }),
@@ -1101,6 +1103,7 @@ const API = {
     if (!rec.date) throw new Error('날짜가 올바르지 않습니다.');
     if (!rec.school) throw new Error('학교명을 입력하세요.');
     must(await sb.from('records').insert({
+      school_year: settings.year, semester: settings.semester,
       date: rec.date, school: rec.school,
       period: rec.period || null, class_name: rec.cls || null, progress: rec.progress || null
     }));
@@ -1156,7 +1159,7 @@ const API = {
     if (!spec.overwrite){
       const rows = await fetchAll(function(){
         return sb.from('records').select('date,period,class_name')
-          .eq('school', spec.school).gte('date', spec.start).lte('date', spec.end).order('id');
+          .eq('school_year', settings.year).eq('semester', settings.semester).eq('school', spec.school).gte('date', spec.start).lte('date', spec.end).order('id');
       });
       rows.forEach(function(r){ existing[r.date + '|' + (r.period || '') + '|' + (r.class_name || '')] = true; });
     }
@@ -1174,6 +1177,7 @@ const API = {
         const key = dateStr + '|' + (it.period || '') + '|' + (it.cls || '');
         if (existing[key]) return;
         toInsert.push({
+          school_year: settings.year, semester: settings.semester,
           date: dateStr, school: spec.school,
           period: it.period || null, class_name: it.cls || null, progress: it.progress || null
         });
@@ -1199,7 +1203,7 @@ const API = {
     if (!c.start || !c.end) throw new Error('기간을 입력하세요.');
     const results = await Promise.all([
       fetchAll(function(){
-        let q = sb.from('records').select('date,school,class_name').gte('date', c.start).lte('date', c.end).order('id');
+        let q = sb.from('records').select('date,school,class_name').eq('school_year', settings.year).eq('semester', settings.semester).gte('date', c.start).lte('date', c.end).order('id');
         if (c.school) q = q.eq('school', c.school);
         return q;
       }),
@@ -1325,6 +1329,7 @@ document.addEventListener('DOMContentLoaded', async function(){
 /* =========================================================
 설정 (app_settings 테이블, [설정] 탭에서 수정)
 · year  : 학년도 (3월 ~ 다음 해 2월)
+· semester : 학기 (1 또는 2) — 진도 · 수행평가 자료를 학기마다 구분
 · dday  : 상단 D-day 날짜와 문구
 · theme : 화면 테마
 · bell  : 학교별 시정표 { 학교: {start, len, brk, lunchAfter, lunch, midAfter, mid} }
@@ -1339,7 +1344,7 @@ const THEMES = [
 { id: 'mono', name: '모노', colors: ['#334155', '#0f172a', '#64748b'] },
 { id: 'flat', name: '단색 (깔끔)', colors: ['#2457d6'], swatch: 'linear-gradient(90deg,#f4f6f9 0 34%,#2457d6 34% 67%,#1f2a44 67%)' }
 ];
-let settings = { year: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet', bell: {}, neis: {}, mealDays: {} };
+let settings = { year: 0, semester: 0, dday: { date: '2027-01-08', label: '겨울방학까지' }, theme: 'violet', bell: {}, neis: {}, mealDays: {} };
 
 let state = {
 view: 'dash',
@@ -1436,9 +1441,24 @@ return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1;
 function yearRange(y){
 return { start: y + '-03-01', end: fmt(new Date(y + 1, 2, 0)) };
 }
-// 학년도를 바꿨을 때 처음 보여줄 날짜 : 오늘이 그 학년도면 오늘, 아니면 3월 2일
-function yearDefaultDate(y){
-return schoolYearOf(state.today) === y ? state.today : y + '-03-02';
+/* ---------- 학기 : 1학기 = 3월 1일 ~ 8월 15일, 2학기 = 8월 16일 ~ 다음 해 2월 말일 ---------- */
+function semesterOf(dateStr){
+const d = parseD(dateStr), m = d.getMonth() + 1;
+return (m >= 3 && m <= 7) || (m === 8 && d.getDate() <= 15) ? 1 : 2;
+}
+function semesterRange(y, sem){
+return sem === 1 ? { start: y + '-03-01', end: y + '-08-15' }
+: { start: y + '-08-16', end: fmt(new Date(y + 1, 2, 0)) };
+}
+function isCurrentTerm(){
+return schoolYearOf(state.today) === settings.year && semesterOf(state.today) === settings.semester;
+}
+function termLabel(){ return settings.year + '학년도 ' + settings.semester + '학기'; }
+function termKey(){ return settings.year + '-' + settings.semester; }
+// 학년도 · 학기를 바꿨을 때 처음 보여줄 날짜 : 오늘이 그 학기면 오늘, 아니면 1학기 3월 2일 · 2학기 8월 16일
+function termDefaultDate(){
+if (isCurrentTerm()) return state.today;
+return settings.semester === 1 ? settings.year + '-03-02' : settings.year + '-08-16';
 }
 
 /* ---------- 설정 불러오기 · 저장 ---------- */
@@ -1446,6 +1466,7 @@ async function loadSettings(){
 const rows = must(await sb.from('app_settings').select('key,value'));
 rows.forEach(function(r){
 if (r.key === 'school_year') settings.year = Number(r.value) || 0;
+else if (r.key === 'semester') settings.semester = Number(r.value) === 1 ? 1 : (Number(r.value) === 2 ? 2 : 0);
 else if (r.key === 'dday') settings.dday = r.value || {};
 else if (r.key === 'theme') settings.theme = r.value || 'violet';
 else if (r.key === 'bell') settings.bell = r.value || {};
@@ -1462,8 +1483,8 @@ document.documentElement.dataset.theme = t;
 try { localStorage.setItem('theme', t); } catch (e) {}
 }
 function applyYearLabels(){
-document.getElementById('yearSub').textContent = settings.year + '학년도';
-document.getElementById('evYearLabel').textContent = settings.year + '학년도 ·';
+document.getElementById('yearSub').textContent = termLabel();
+document.getElementById('evYearLabel').textContent = termLabel() + ' ·';
 }
 
 /* 학교 목록 UI 갱신 (state.schools 기준) */
@@ -1486,12 +1507,13 @@ showLoading('초기 데이터를 불러오는 중...');
 state.today = seoulToday();
 try { await loadSettings(); } catch (e) { toast('설정을 불러오지 못했습니다: ' + e.message, 'err'); }
 if (!settings.year) settings.year = schoolYearOf(state.today);
+if (!settings.semester) settings.semester = semesterOf(state.today);
 applyTheme(settings.theme);
 applyYearLabels();
 
 google.script.run.withSuccessHandler(function(init){
 const today = init.today;
-state.today = today; state.date = yearDefaultDate(settings.year);
+state.today = today; state.date = termDefaultDate();
 state.schools = init.schools || [];
 
 document.getElementById('todayBadge').textContent = '오늘: ' + prettyLong(today);
@@ -1616,9 +1638,9 @@ else if (v==='settings') renderSettings();
 }
 
 /* ============== 설정 ============== */
-// 수업시수 기본 기간 : 지금 학년도면 이번 달, 다른 학년도면 학년도 전체
+// 수업시수 기본 기간 : 지금 학기면 이번 달, 다른 학기면 학기 전체
 function setStatRange(){
-const r = schoolYearOf(state.today) === settings.year ? monthRange(state.today) : yearRange(settings.year);
+const r = isCurrentTerm() ? monthRange(state.today) : semesterRange(settings.year, settings.semester);
 document.getElementById('statStart').value = r.start;
 document.getElementById('statEnd').value = r.end;
 }
@@ -1647,6 +1669,7 @@ settingYears().then(function(list){
 ySel.innerHTML = list.map(function(y){ return opt(y, y + '학년도'); }).join('');
 ySel.value = settings.year;
 });
+document.getElementById('setSemester').value = settings.semester;
 document.getElementById('setDdayLabel').value = (settings.dday || {}).label || '';
 document.getElementById('setDdayDate').value = (settings.dday || {}).date || '';
 document.getElementById('setThemes').innerHTML = THEMES.map(function(t){
@@ -1664,16 +1687,27 @@ const y = Number(sel.value);
 try { await saveSetting('school_year', y); }
 catch (e) { toast(e.message, 'err'); sel.value = settings.year; return; }
 settings.year = y;
+afterTermChange();
+}
+async function changeSemester(){
+const sel = document.getElementById('setSemester');
+const sem = Number(sel.value) === 1 ? 1 : 2;
+try { await saveSetting('semester', sem); }
+catch (e) { toast(e.message, 'err'); sel.value = settings.semester; return; }
+settings.semester = sem;
+afterTermChange();
+}
+// 학년도 · 학기가 바뀌면 학교 목록 · 화면 캐시 · 수행평가 자료를 모두 새로
+function afterTermChange(){
 applyYearLabels();
-// 학년도가 바뀌면 학교 목록 · 화면 캐시 · 수행평가 자료를 모두 새로
 invalidateSchools();
 clearViewCache();
 closeTaskEditor();
 ev.schools = []; ev.school = '';
-state.date = yearDefaultDate(y);
+state.date = termDefaultDate();
 setStatRange();
 loadSchools();
-toast(y + '학년도 자료로 바꿨습니다.', 'ok');
+toast(termLabel() + ' 자료로 바꿨습니다.', 'ok');
 }
 async function saveDday(){
 const d = {
@@ -2331,7 +2365,7 @@ return t.items.reduce(function(s, i){ return s + evNum(i.max_score); }, 0);
 async function loadEvalSchools(){
 const res = await Promise.all([
 fetchAll(function(){ return sb.from('eval_students').select('school').eq('school_year', settings.year).order('id'); }),
-fetchAll(function(){ return sb.from('eval_tasks').select('school').eq('school_year', settings.year).order('id'); }),
+fetchAll(function(){ return sb.from('eval_tasks').select('school').eq('school_year', settings.year).eq('semester', settings.semester).order('id'); }),
 loadSchoolList()
 ]);
 const set = {};
@@ -2375,7 +2409,7 @@ const res = await Promise.all([
 fetchAll(function(){
 return sb.from('eval_students').select('id,class_name,number,name,access_code').eq('school_year', settings.year).eq('school', s).order('id');
 }),
-sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school_year', settings.year).eq('school', s).order('id').then(must)
+sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school_year', settings.year).eq('semester', settings.semester).eq('school', s).order('id').then(must)
 ]);
 ev.students = res[0].sort(function(a, b){ return byClassName(a.class_name, b.class_name) || (a.number - b.number); });
 ev.tasks = res[1].map(normTask);
@@ -2511,6 +2545,7 @@ ySel.innerHTML = [settings.year + 1, settings.year, settings.year - 1].map(funct
 return opt(y, y + '학년도' + (y === settings.year ? ' (현재)' : ''));
 }).join('');
 ySel.value = settings.year;
+document.getElementById('cpSemester').value = settings.semester;
 document.getElementById('copyModal').classList.add('show');
 }
 function closeCopyModal(){
@@ -2519,11 +2554,12 @@ document.getElementById('copyModal').classList.remove('show');
 async function doCopyTask(){
 const target = document.getElementById('cpSchool').value;
 const year = Number(document.getElementById('cpYear').value);
-const here = target === ev.school && year === settings.year;
+const sem = Number(document.getElementById('cpSemester').value);
+const here = target === ev.school && year === settings.year && sem === settings.semester;
 try {
-must(await sb.rpc('copy_eval_task', { p_task_id: state.copyTask, p_school: target, p_year: year }));
+must(await sb.rpc('copy_eval_task', { p_task_id: state.copyTask, p_school: target, p_year: year, p_semester: sem }));
 closeCopyModal();
-toast((here ? '복사본을 만들었습니다.' : year + '학년도 ' + target + '(으)로 복사했습니다.') + ' 복사본은 학생 비공개 상태입니다.', 'ok');
+toast((here ? '복사본을 만들었습니다.' : year + '학년도 ' + sem + '학기 ' + target + '(으)로 복사했습니다.') + ' 복사본은 학생 비공개 상태입니다.', 'ok');
 if (here) loadEval();
 } catch (e) { toast(e.message, 'err'); }
 }
@@ -2648,6 +2684,7 @@ function etCollect(){
 return {
 id: ev.editing.id || null,
 school_year: settings.year,
+semester: settings.semester,
 school: ev.school,
 title: document.getElementById('etTitle').value.trim(),
 target: document.getElementById('etTarget').value.trim(),
@@ -3119,7 +3156,7 @@ html += '</tbody></table></div>' +
 '<div class="muted" style="font-size:12px">성적 = Σ(과제 합계 ÷ 만점 × 반영 비율), 소수점 첫째 자리까지 · 노란 칸: 아직 입력되지 않은 점수가 있음 (0점으로 계산)</div>' +
 '<button class="btn ghost sm" onclick="downloadSummaryCsv()">CSV 내려받기</button></div>';
 
-html += '<h3>학교별 평정 비율 <span class="muted" style="font-weight:400">(' + esc(settings.year) + '학년도 전체 학교)</span></h3><div id="smAllSchools"></div>';
+html += '<h3>학교별 평정 비율 <span class="muted" style="font-weight:400">(' + esc(termLabel()) + ' 전체 학교)</span></h3><div id="smAllSchools"></div>';
 box.innerHTML = html;
 renderAllSchoolGrades();
 }
@@ -3127,12 +3164,12 @@ renderAllSchoolGrades();
 /* ---------- 학교별 비교 : 학년도의 모든 학교를 불러와 반영 비율 · 평정 비율을 나란히 보여줌 ---------- */
 async function loadAllSchoolGrades(force){
 if (evSum.loading) return;
-if (!force && evSum.all && evSum.year === settings.year) return;
+if (!force && evSum.all && evSum.year === termKey()) return;
 evSum.loading = true;
 renderAllSchoolGrades();
 try {
 const res = await Promise.all([
-sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school_year', settings.year).order('id').then(must),
+sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school_year', settings.year).eq('semester', settings.semester).order('id').then(must),
 fetchAll(function(){ return sb.from('eval_students').select('id,school,class_name,number,name').eq('school_year', settings.year).order('id'); })
 ]);
 const tasks = res[0].map(normTask), itemIds = [];
@@ -3141,7 +3178,7 @@ const scores = itemIds.length ? await fetchAll(function(){
 return sb.from('eval_scores').select('student_id,item_id,level_id').in('item_id', itemIds).order('id');
 }) : [];
 evSum.all = { tasks: tasks, students: res[1], scores: scores };
-evSum.year = settings.year;
+evSum.year = termKey();
 } catch (e) {
 evSum.all = { error: e.message };
 }
@@ -3183,7 +3220,7 @@ const tasks = bySchool[s.school] || [];
 const r = evGradeRows(tasks, [s], a.scores)[0];
 lines.push([s.school, s.class_name, s.number, s.name].concat([r.g.score == null ? '' : evFmt1(r.g.score), r.g.grade]).map(csvCell).join(','));
 });
-saveCsv(lines, settings.year + '_학교별_성적.csv');
+saveCsv(lines, settings.year + '_' + settings.semester + '학기_학교별_성적.csv');
 }
 function downloadSummaryCsv(){
 const cls = document.getElementById('smClass').value;
@@ -3212,7 +3249,7 @@ saveCsv(lines, ev.school + '_' + (cls || '전체') + '_성적산출.csv');
    eval_signature_list(학년도, 학교) : 학생마다 현재 성적(current), 서명할 때 성적(snapshot),
    서명 그림 · 일시, 서명 뒤 점수가 바뀌었는지(matches) */
 async function loadSignatures(){
-ev.signs = ev.school ? must(await sb.rpc('eval_signature_list', { p_year: settings.year, p_school: ev.school })) : [];
+ev.signs = ev.school ? must(await sb.rpc('eval_signature_list', { p_year: settings.year, p_school: ev.school, p_semester: settings.semester })) : [];
 }
 function renderSignView(){
 const sel = document.getElementById('sgClass');
@@ -3271,7 +3308,7 @@ box.innerHTML = html;
 async function deleteSignature(studentId){
 if (!confirm('이 학생의 서명을 지우시겠습니까? 학생이 다시 서명해야 합니다.')) return;
 try {
-must(await sb.from('eval_signatures').delete().eq('student_id', studentId));
+must(await sb.from('eval_signatures').delete().eq('student_id', studentId).eq('semester', settings.semester));
 toast('서명을 지웠습니다.', 'ok');
 await loadSignatures();
 renderSignTable();
@@ -3287,7 +3324,7 @@ const groups = {};
 rows.forEach(function(x){ (groups[x.r.class_name] = groups[x.r.class_name] || []).push(x); });
 const printed = seoulDateTime(new Date().toISOString());
 const pages = Object.keys(groups).sort(byClassName).map(function(cls){
-return '<section><h1>' + settings.year + '학년도 ' + esc(ev.school) + ' ' + esc(cls) + ' 수행평가 성적 확인서</h1>' +
+return '<section><h1>' + termLabel() + ' ' + esc(ev.school) + ' ' + esc(cls) + ' 수행평가 성적 확인서</h1>' +
 '<div class="meta">출력 ' + esc(printed) + '</div>' +
 '<table><thead><tr><th>번호</th><th>이름</th>' +
 tasks.map(function(t){ return '<th style="min-width:80px">' + esc(t.title) + '<br><small>(' + evFmt(taskMax(t)) + '점)</small></th>'; }).join('') +
@@ -4228,11 +4265,11 @@ const box = document.getElementById('dashEval');
 box.innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>';
 try {
 const res = await Promise.all([
-sb.from('eval_tasks').select('id,school,title,published,eval_items(id)').eq('school_year', settings.year).order('school').order('id').then(must),
+sb.from('eval_tasks').select('id,school,title,published,eval_items(id)').eq('school_year', settings.year).eq('semester', settings.semester).order('school').order('id').then(must),
 fetchAll(function(){ return sb.from('eval_students').select('id,school').eq('school_year', settings.year).order('id'); })
 ]);
 const tasks = res[0], students = res[1];
-if (!tasks.length){ box.innerHTML = dashMsg(settings.year + '학년도에 등록된 평가 기준이 없습니다.'); return; }
+if (!tasks.length){ box.innerHTML = dashMsg(termLabel() + '에 등록된 평가 기준이 없습니다.'); return; }
 const itemIds = [], itemTask = {};
 tasks.forEach(function(t){ (t.eval_items || []).forEach(function(i){ itemIds.push(i.id); itemTask[i.id] = t.id; }); });
 const scores = itemIds.length ? await fetchAll(function(){
@@ -4247,7 +4284,7 @@ const signSchools = [];
 tasks.forEach(function(t){ if (t.published && signSchools.indexOf(t.school) < 0) signSchools.push(t.school); });
 const unsigned = {};
 await Promise.all(signSchools.map(function(sc){
-return sb.rpc('eval_signature_list', { p_year: settings.year, p_school: sc }).then(must).then(function(rows){
+return sb.rpc('eval_signature_list', { p_year: settings.year, p_school: sc, p_semester: settings.semester }).then(must).then(function(rows){
 unsigned[sc] = (rows || []).filter(function(r){ return (r.current || []).length && !(r.signed_at && r.matches); }).length;
 }).catch(function(){});
 }));
