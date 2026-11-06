@@ -389,6 +389,22 @@ color:#475569; background:#fff; border:1px solid var(--border); box-shadow:var(-
 .et-warn{font-size:12px; color:var(--danger); margin-top:4px}
 .et-total{font-weight:700; margin-top:6px}
 .ev-scroll{overflow:auto}
+.ev-weights{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0}
+.ev-wchip{display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; background:var(--primary-soft); color:var(--primary-ink)}
+.ev-wchip.off{background:#f1f5f9; color:var(--muted)}
+.ev-wchip.total{background:transparent; border:1px solid var(--primary-soft)}
+.ev-wchip small{opacity:.75}
+.ev-wschool{margin:8px 0; font-size:13px}
+.ev-score td small{display:block; font-size:11px; color:var(--muted); font-weight:400}
+.ev-dist td{min-width:58px}
+.ev-bar-mini{display:block; height:4px; border-radius:2px; background:#e2e8f0; margin-top:3px; overflow:hidden}
+.ev-bar-mini i{display:block; height:100%}
+.ev-grade{display:inline-block; min-width:24px; padding:2px 6px; border-radius:6px; font-weight:700; text-align:center}
+.gA{background:#d1fae5; color:#065f46} .ev-bar-mini .gA{background:#10b981}
+.gB{background:#dbeafe; color:#1e40af} .ev-bar-mini .gB{background:#3b82f6}
+.gC{background:#fef3c7; color:#92400e} .ev-bar-mini .gC{background:#f59e0b}
+.gD{background:#ffedd5; color:#9a3412} .ev-bar-mini .gD{background:#f97316}
+.gE{background:#ffe4e6; color:#9f1239} .ev-bar-mini .gE{background:#f43f5e}
 .ev-score td, .ev-score th{white-space:nowrap; vertical-align:middle}
 .ev-score td, .ev-score th{padding:8px 6px}
 .ev-score{overflow:visible}
@@ -615,7 +631,7 @@ body{padding:12px}
 <div class="tabs" data-mode="eval" style="display:none">
 <div class="tab" data-view="etask">평가 기준</div>
 <div class="tab" data-view="escore">점수 입력</div>
-<div class="tab" data-view="esum">과제별 합계</div>
+<div class="tab" data-view="esum">합계 · 성적</div>
 <div class="tab" data-view="esign">서명 확인</div>
 <div class="tab" data-view="estu">학생 명단</div>
 </div>
@@ -758,7 +774,7 @@ body{padding:12px}
 </div>
 <!-- 수행평가 : 과제별 합계 -->
 <div id="esumCard" class="card" style="display:none">
-<h2>과제별 합계</h2>
+<h2>과제별 합계 · 성적 산출</h2>
 <div class="row">
 <label class="field">반<select id="smClass" onchange="renderSummaryTable()"></select></label>
 </div>
@@ -2945,7 +2961,73 @@ a.remove();
 setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
 }
 
-/* ============== 과제별 합계 (번호 · 이름 · 과제마다 합계) ============== */
+/* ============== 과제별 합계 · 성적 산출 ==============
+   - 과제마다 (합계 ÷ 만점 × 반영 비율)을 더해 100점 만점 성적을 냅니다.
+   - 반영 비율 합이 100%가 아니면 100점 만점이 되도록 비율대로 환산합니다.
+   - 반영 비율이 없는(또는 0%) 과제는 성적 산출에서 빠집니다.
+   - 성적은 소수점 첫째 자리까지 (둘째 자리에서 반올림)
+   - 평정 : 90점 이상 A · 80점 이상 B · 70점 이상 C · 60점 이상 D · 그 외 E
+========================================================= */
+const EV_GRADES = ['A', 'B', 'C', 'D', 'E'];
+const evSum = { all: null, loading: false, year: null }; // 전체 학교 비교 (학년도마다 한 번 불러옴)
+function evRound1(v){ return Math.round((v + 1e-9) * 10) / 10; }
+function evFmt1(v){ return evRound1(v).toFixed(1); }
+function evGradeOf(score){
+return score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'E';
+}
+function evPct(n, total){ return total ? evFmt1(n / total * 100) : '0.0'; }
+function evWeight(t){ const w = Number(t.weight_pct); return (t.weight_pct != null && t.weight_pct !== '' && isFinite(w) && w > 0) ? w : 0; }
+// 성적 산출에 들어가는 과제와 반영 비율 합
+function evWeightInfo(tasks){
+const used = tasks.filter(function(t){ return evWeight(t) > 0 && taskMax(t) > 0; });
+return { used: used, sum: used.reduce(function(s, t){ return s + evWeight(t); }, 0) };
+}
+// 학생별 · 과제별 합계 : { 학생id: { 과제id: { total, filled } } }
+function taskTotals(tasks, scoreRows){
+tasks = tasks || ev.tasks; scoreRows = scoreRows || ev.scoreRows;
+const taskOfItem = {}, scoreOfLevel = {}, out = {};
+tasks.forEach(function(t){ t.items.forEach(function(i){
+taskOfItem[i.id] = t.id;
+i.levels.forEach(function(l){ scoreOfLevel[l.id] = l.score; });
+}); });
+scoreRows.forEach(function(r){
+const tid = taskOfItem[r.item_id];
+if (tid == null) return;
+const st = out[r.student_id] = out[r.student_id] || {};
+const t = st[tid] = st[tid] || { total: 0, filled: 0 };
+t.total += evNum(scoreOfLevel[r.level_id]);
+t.filled++;
+});
+return out;
+}
+// 학생 한 명의 성적 : 과제마다 반영 점수, 100점 만점 성적, 평정
+function evStudentGrade(tasks, info, st){
+let sum = 0, any = false, partial = false;
+const cells = tasks.map(function(t){
+const v = st[t.id], max = taskMax(t), w = evWeight(t);
+const used = w > 0 && max > 0;
+const conv = (v && used) ? v.total / max * w : null;
+if (v && used){ sum += conv; any = true; }
+if (used && (!v || v.filled < t.items.length)) partial = true;
+return { total: v ? v.total : null, partial: !!v && v.filled < t.items.length, conv: conv };
+});
+const score = (any && info.sum > 0) ? evRound1(sum / info.sum * 100) : null;
+return { cells: cells, score: score, grade: score == null ? '' : evGradeOf(score), partial: any && partial };
+}
+// 학생 목록의 성적 + 평정 분포
+function evGradeRows(tasks, students, scoreRows){
+const totals = taskTotals(tasks, scoreRows), info = evWeightInfo(tasks);
+return students.map(function(s){ return { student: s, g: evStudentGrade(tasks, info, totals[s.id] || {}) }; });
+}
+function evDist(rows){
+const d = { A: 0, B: 0, C: 0, D: 0, E: 0, graded: 0, none: 0, total: rows.length, sum: 0 };
+rows.forEach(function(r){
+if (r.g.grade){ d[r.g.grade]++; d.graded++; d.sum += r.g.score; } else d.none++;
+});
+d.avg = d.graded ? evFmt1(d.sum / d.graded) : '-';
+return d;
+}
+
 function renderSummaryView(){
 const sel = document.getElementById('smClass');
 const prev = sel.value;
@@ -2954,65 +3036,176 @@ sel.innerHTML = classes.length ? '<option value="">전체 반</option>' + classe
 : '<option value="">(학생 명단 없음)</option>';
 if (classes.indexOf(prev) >= 0) sel.value = prev;
 renderSummaryTable();
-}
-// 학생별 · 과제별 합계 : { 학생id: { 과제id: { total, filled } } }
-function taskTotals(){
-const taskOfItem = {}, scoreOfLevel = {}, out = {};
-ev.tasks.forEach(function(t){ t.items.forEach(function(i){
-taskOfItem[i.id] = t.id;
-i.levels.forEach(function(l){ scoreOfLevel[l.id] = l.score; });
-}); });
-ev.scoreRows.forEach(function(r){
-const tid = taskOfItem[r.item_id];
-const st = out[r.student_id] = out[r.student_id] || {};
-const t = st[tid] = st[tid] || { total: 0, filled: 0 };
-t.total += evNum(scoreOfLevel[r.level_id]);
-t.filled++;
-});
-return out;
+loadAllSchoolGrades(true);
 }
 function summaryRows(){
 const cls = document.getElementById('smClass').value;
-const totals = taskTotals();
-return (cls ? evStudentsOf(cls) : ev.students).map(function(s){
-return { student: s, cells: ev.tasks.map(function(t){
-const v = (totals[s.id] || {})[t.id];
-return { value: v ? evFmt(v.total) : '', partial: !!v && v.filled < t.items.length };
-}) };
-});
+return evGradeRows(ev.tasks, cls ? evStudentsOf(cls) : ev.students);
+}
+// 반영 비율 안내
+function evWeightHtml(tasks){
+const info = evWeightInfo(tasks);
+let html = '<div class="ev-weights">' + tasks.map(function(t){
+const w = evWeight(t), max = taskMax(t);
+const on = w > 0 && max > 0;
+return '<span class="ev-wchip' + (on ? '' : ' off') + '">' + esc(t.title) + ' <b>' + (w > 0 ? evFmt(w) + '%' : '비율 없음') + '</b>' +
+(on ? ' <small>(' + evFmt(max) + '점 → ' + evFmt1(info.sum ? w / info.sum * 100 : 0) + '점)</small>' : '') + '</span>';
+}).join('') + '<span class="ev-wchip total">반영 비율 합 <b>' + evFmt(info.sum) + '%</b></span></div>';
+if (!info.used.length)
+html += '<div class="hint" style="color:#b45309">반영 비율이 입력된 과제가 없어 성적을 산출할 수 없습니다. [평가 기준]에서 과제마다 반영 비율(%)을 입력하세요.</div>';
+else if (Math.abs(info.sum - 100) > 1e-9)
+html += '<div class="hint" style="color:#b45309">반영 비율 합이 100%가 아닙니다. 100점 만점이 되도록 비율대로 환산했습니다.</div>';
+if (info.used.length && info.used.length < tasks.length)
+html += '<div class="hint">반영 비율이 없거나 만점이 0점인 과제는 성적 산출에서 빠집니다.</div>';
+return html;
+}
+// 평정 분포 표 : rows = [{ label, d }]
+function evDistTable(rows, firstHead){
+return '<div class="ev-scroll"><table class="ev-score ev-dist"><thead><tr><th>' + esc(firstHead) + '</th><th class="num">인원</th>' +
+EV_GRADES.map(function(g){ return '<th class="num">' + g + '</th>'; }).join('') +
+'<th class="num">미산출</th><th class="num">평균</th></tr></thead><tbody>' +
+rows.map(function(r){
+const d = r.d;
+return '<tr' + (r.strong ? ' style="font-weight:700"' : '') + '><td>' + esc(r.label) + '</td><td class="num">' + d.total + '</td>' +
+EV_GRADES.map(function(g){
+return '<td class="num">' + d[g] + '명<small>' + evPct(d[g], d.graded) + '%</small>' +
+'<span class="ev-bar-mini"><i class="g' + g + '" style="width:' + (d.graded ? d[g] / d.graded * 100 : 0) + '%"></i></span></td>';
+}).join('') +
+'<td class="num">' + (d.none ? d.none + '명' : '<span class="muted">-</span>') + '</td><td class="num">' + d.avg + '</td></tr>';
+}).join('') + '</tbody></table></div>';
 }
 function renderSummaryTable(){
 const box = document.getElementById('smBody');
-const all = !document.getElementById('smClass').value;
+const cls = document.getElementById('smClass').value, all = !cls;
 if (!ev.school){ box.innerHTML = '<div class="empty"><div class="big">학교를 먼저 선택하세요</div></div>'; return; }
 if (!ev.tasks.length){ box.innerHTML = '<div class="empty"><div class="big">평가 기준이 없습니다</div><div>[평가 기준] 탭에서 먼저 입력하세요.</div></div>'; return; }
 if (!ev.students.length){ box.innerHTML = '<div class="empty"><div class="big">학생 명단이 없습니다</div><div>[학생 명단] 탭에서 먼저 등록하세요.</div></div>'; return; }
-let html = '<div class="ev-scroll"><table class="ev-score"><thead><tr>' +
+const rows = summaryRows();
+let html = '<h3>반영 비율</h3>' + evWeightHtml(ev.tasks);
+
+// 평정 분포 (학교 전체 · 반별)
+const distRows = [{ label: ev.school + ' 전체', d: evDist(evGradeRows(ev.tasks, ev.students)), strong: true }];
+evClasses().forEach(function(c){
+if (!all && c !== cls) return;
+distRows.push({ label: c, d: evDist(evGradeRows(ev.tasks, evStudentsOf(c))) });
+});
+html += '<h3>평정 비율 <span class="muted" style="font-weight:400">(90↑ A · 80↑ B · 70↑ C · 60↑ D · 그 외 E, 비율은 성적이 산출된 학생 기준)</span></h3>' +
+evDistTable(distRows, '구분');
+
+// 학생별 성적
+html += '<h3>학생별 성적</h3><div class="ev-scroll"><table class="ev-score"><thead><tr>' +
 (all ? '<th>반</th>' : '') + '<th class="num">번호</th><th>이름</th>' +
-ev.tasks.map(function(t){ return '<th class="num" style="white-space:normal; min-width:90px">' + esc(t.title) + '<small>' + evFmt(taskMax(t)) + '점</small></th>'; }).join('') +
-'</tr></thead><tbody>';
-summaryRows().forEach(function(r){
+ev.tasks.map(function(t){
+const w = evWeight(t);
+return '<th class="num" style="white-space:normal; min-width:90px">' + esc(t.title) +
+'<small>' + evFmt(taskMax(t)) + '점' + (w > 0 ? ' · ' + evFmt(w) + '%' : ' · 미반영') + '</small></th>';
+}).join('') +
+'<th class="num">성적<small>100점 만점</small></th><th class="num">평정</th></tr></thead><tbody>';
+rows.forEach(function(r){
+const g = r.g;
 html += '<tr>' + (all ? '<td>' + esc(r.student.class_name) + '</td>' : '') +
 '<td class="num">' + r.student.number + '</td><td>' + esc(r.student.name) + '</td>' +
-r.cells.map(function(c){
-return '<td class="num"' + (c.partial ? ' style="background:#fffbeb" title="일부 채점 요소만 입력됨"' : '') + '>' + (c.value || '<span class="muted">-</span>') + '</td>';
-}).join('') + '</tr>';
+g.cells.map(function(c){
+return '<td class="num"' + (c.partial ? ' style="background:#fffbeb" title="일부 채점 요소만 입력됨"' : '') + '>' +
+(c.total == null ? '<span class="muted">-</span>' : evFmt(c.total) +
+(c.conv != null ? '<small>반영 ' + evFmt1(c.conv) + '</small>' : '')) + '</td>';
+}).join('') +
+'<td class="num"' + (g.partial ? ' style="background:#fffbeb" title="입력되지 않은 점수가 있음 (0점으로 계산)"' : '') + '><b>' +
+(g.score == null ? '<span class="muted">-</span>' : evFmt1(g.score)) + '</b></td>' +
+'<td class="num">' + (g.grade ? '<span class="ev-grade g' + g.grade + '">' + g.grade + '</span>' : '<span class="muted">-</span>') + '</td></tr>';
 });
 html += '</tbody></table></div>' +
 '<div class="flex" style="margin-top:10px; align-items:center; justify-content:space-between">' +
-'<div class="muted" style="font-size:12px">노란 칸: 일부 채점 요소만 입력된 합계</div>' +
+'<div class="muted" style="font-size:12px">성적 = Σ(과제 합계 ÷ 만점 × 반영 비율), 소수점 첫째 자리까지 · 노란 칸: 아직 입력되지 않은 점수가 있음 (0점으로 계산)</div>' +
 '<button class="btn ghost sm" onclick="downloadSummaryCsv()">CSV 내려받기</button></div>';
+
+html += '<h3>학교별 평정 비율 <span class="muted" style="font-weight:400">(' + esc(settings.year) + '학년도 전체 학교)</span></h3><div id="smAllSchools"></div>';
 box.innerHTML = html;
+renderAllSchoolGrades();
+}
+
+/* ---------- 학교별 비교 : 학년도의 모든 학교를 불러와 반영 비율 · 평정 비율을 나란히 보여줌 ---------- */
+async function loadAllSchoolGrades(force){
+if (evSum.loading) return;
+if (!force && evSum.all && evSum.year === settings.year) return;
+evSum.loading = true;
+renderAllSchoolGrades();
+try {
+const res = await Promise.all([
+sb.from('eval_tasks').select('*, eval_items(*, eval_item_levels(*))').eq('school_year', settings.year).order('id').then(must),
+fetchAll(function(){ return sb.from('eval_students').select('id,school,class_name,number,name').eq('school_year', settings.year).order('id'); })
+]);
+const tasks = res[0].map(normTask), itemIds = [];
+tasks.forEach(function(t){ t.items.forEach(function(i){ itemIds.push(i.id); }); });
+const scores = itemIds.length ? await fetchAll(function(){
+return sb.from('eval_scores').select('student_id,item_id,level_id').in('item_id', itemIds).order('id');
+}) : [];
+evSum.all = { tasks: tasks, students: res[1], scores: scores };
+evSum.year = settings.year;
+} catch (e) {
+evSum.all = { error: e.message };
+}
+evSum.loading = false;
+renderAllSchoolGrades();
+}
+function renderAllSchoolGrades(){
+const box = document.getElementById('smAllSchools');
+if (!box) return;
+if (evSum.loading || !evSum.all){ box.innerHTML = '<div class="skeleton"><span class="spinner"></span>불러오는 중...</div>'; return; }
+if (evSum.all.error){ box.innerHTML = '<div class="empty"><div>불러오기 실패: ' + esc(evSum.all.error) + '</div></div>'; return; }
+const a = evSum.all, schools = {};
+a.tasks.forEach(function(t){ (schools[t.school] = schools[t.school] || { tasks: [], students: [] }).tasks.push(t); });
+a.students.forEach(function(s){ (schools[s.school] = schools[s.school] || { tasks: [], students: [] }).students.push(s); });
+const names = Object.keys(schools).sort();
+if (!names.length){ box.innerHTML = '<div class="empty"><div>등록된 학교가 없습니다</div></div>'; return; }
+const distRows = [];
+let wHtml = '';
+names.forEach(function(n){
+const sc = schools[n];
+distRows.push({ label: n, d: evDist(evGradeRows(sc.tasks, sc.students, a.scores)), strong: n === ev.school });
+wHtml += '<div class="ev-wschool"><b>' + esc(n) + '</b>' + (sc.tasks.length ? evWeightHtml(sc.tasks) : '<div class="hint">평가 기준 없음</div>') + '</div>';
+});
+box.innerHTML = evDistTable(distRows, '학교') +
+'<h3>학교별 반영 비율</h3>' + wHtml +
+'<div class="flex" style="margin-top:8px; justify-content:flex-end">' +
+'<button class="btn ghost sm" onclick="loadAllSchoolGrades(true)">새로고침</button>' +
+'<button class="btn ghost sm" onclick="downloadSchoolGradesCsv()">학교별 CSV</button></div>';
+}
+function downloadSchoolGradesCsv(){
+const a = evSum.all;
+if (!a || a.error) return;
+const lines = [['학교','반','번호','이름'].concat(['성적(100점)','평정']).map(csvCell).join(',')];
+const bySchool = {};
+a.tasks.forEach(function(t){ (bySchool[t.school] = bySchool[t.school] || []).push(t); });
+a.students.slice().sort(function(x, y){ return String(x.school).localeCompare(String(y.school), 'ko') || byClassName(x.class_name, y.class_name) || (x.number - y.number); })
+.forEach(function(s){
+const tasks = bySchool[s.school] || [];
+const r = evGradeRows(tasks, [s], a.scores)[0];
+lines.push([s.school, s.class_name, s.number, s.name].concat([r.g.score == null ? '' : evFmt1(r.g.score), r.g.grade]).map(csvCell).join(','));
+});
+saveCsv(lines, settings.year + '_학교별_성적.csv');
 }
 function downloadSummaryCsv(){
 const cls = document.getElementById('smClass').value;
-const head = (cls ? [] : ['반']).concat(['번호', '이름'], ev.tasks.map(function(t){ return t.title; }));
+const head = (cls ? [] : ['반']).concat(['번호', '이름']);
+ev.tasks.forEach(function(t){
+const w = evWeight(t);
+head.push(t.title + '(' + evFmt(taskMax(t)) + '점)');
+if (w > 0) head.push(t.title + ' 반영(' + evFmt(w) + '%)');
+});
+head.push('성적(100점)', '평정');
 const lines = [head.map(csvCell).join(',')];
 summaryRows().forEach(function(r){
-lines.push((cls ? [] : [r.student.class_name]).concat([r.student.number, r.student.name],
-r.cells.map(function(c){ return c.value; })).map(csvCell).join(','));
+const row = (cls ? [] : [r.student.class_name]).concat([r.student.number, r.student.name]);
+ev.tasks.forEach(function(t, k){
+const c = r.g.cells[k];
+row.push(c.total == null ? '' : evFmt(c.total));
+if (evWeight(t) > 0) row.push(c.conv == null ? '' : evFmt1(c.conv));
 });
-saveCsv(lines, ev.school + '_' + (cls || '전체') + '_과제별합계.csv');
+row.push(r.g.score == null ? '' : evFmt1(r.g.score), r.g.grade);
+lines.push(row.map(csvCell).join(','));
+});
+saveCsv(lines, ev.school + '_' + (cls || '전체') + '_성적산출.csv');
 }
 
 /* ============== 성적 확인 서명 ==============
