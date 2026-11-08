@@ -2760,10 +2760,9 @@ const seen = {};
 return item.levels.map(function(l){ return evFmt(l.score); }).filter(function(v){ return seen[v] ? false : (seen[v] = true); });
 }
 /* ============== 바이브코딩 갤러리 점수 자동 입력 ==============
-   채점 요소(영역)를 갤러리 학교와 연결하면, 갤러리에서 선생님이 준 평가 점수(30 · 22 · 14 · 6)가
-   학번(학년 · 반 · 번호)이 같은 학생의 그 채점 요소 점수로 자동 입력됩니다. (DB 트리거)
-   - 채점 기준에 30 · 22 · 14 · 6점이 모두 있으면 같은 점수, 아니면 등급 순서대로 맞춰 넣음
-   - 작품이 여러 개면 가장 높은 점수 */
+   채점 요소(영역)를 갤러리 학교와 연결하면, 갤러리 선생님 모드의 점수표에 그 영역이 나타나고
+   갤러리에서 고른 영역 점수가 학번(학년 · 반 · 번호)이 같은 학생의 점수로 자동 입력됩니다. (DB 트리거)
+   - 작품이 여러 개면 영역마다 가장 높은 점수 */
 function guessGallerySchool(){
 const list = ev.gallerySchools || [], s = ev.school;
 for (let i = 0; i < list.length; i++) if (list[i] === s || list[i] === s + '학교') return list[i];
@@ -2776,9 +2775,11 @@ const linkedCnt = task.items.filter(function(it){ return ev.galleryLinks[it.id];
 const guess = guessGallerySchool();
 let html = '<details class="ev-legend"' + (ev.galOpen ? ' open' : '') + ' ontoggle="ev.galOpen=this.open"><summary>바이브코딩 갤러리 점수 자동 입력' +
 (linkedCnt ? ' <span class="badge ok">' + linkedCnt + '개 영역 연결됨</span>' : '') + '</summary>' +
-'<div class="hint" style="margin:6px 0">영역(채점 요소)을 갤러리 학교와 연결하면 갤러리에서 준 평가 점수(30 · 22 · 14 · 6)가 학번이 같은 학생의 점수로 자동 입력되고, ' +
-'갤러리에서 점수를 바꾸거나 지우면 여기에도 바로 반영됩니다. 채점 기준에 30 · 22 · 14 · 6점이 모두 있으면 같은 점수로, 아니면 등급 순서대로(가장 높은 기준부터) 넣습니다. ' +
-'작품이 여러 개면 가장 높은 점수를 씁니다. 반은 "2-1"처럼 입력되어 있어야 학번(2101)과 맞춰집니다.</div>';
+'<div class="hint" style="margin:6px 0">영역(채점 요소)을 갤러리 학교와 연결하면 바이브코딩 갤러리 선생님 모드의 점수표에 그 영역이 나타납니다. ' +
+'갤러리에서 영역마다 점수를 고르면 학번이 같은 학생의 점수로 자동 입력되고, 바꾸거나 지우면 여기에도 바로 반영됩니다. ' +
+'작품이 여러 개면 영역마다 가장 높은 점수를 씁니다. 반은 "2-1"처럼 입력되어 있어야 학번(2101)과 맞춰집니다. ' +
+'갤러리 점수표에는 가장 최근 학년도 · 학기의 연결된 과제 영역이 나옵니다.</div>' +
+(guess && linkedCnt < task.items.length ? '<div style="margin:6px 0 4px"><button class="btn sm" onclick="linkAllGallery('+task.id+')">모든 영역을 ' + esc(guess) + '와(과) 연결</button></div>' : '');
 task.items.forEach(function(it){
 const cur = ev.galleryLinks[it.id] || '';
 let opts = '<option value="">연결 안 함</option>';
@@ -2797,13 +2798,13 @@ let msg = '"' + itemName + '" : 갤러리 점수 ' + ((res && res.applied) || 0)
 toast(msg, 'ok');
 if (!box) return;
 box.innerHTML = um.length ? '<div class="ev-notice" style="margin-top:8px"><span><b>학생 명단에서 찾지 못한 작품 ' + um.length + '개</b> (학번 · 이름이 맞는지 확인하세요): ' +
-um.map(function(w){ return esc((w.hakbun || '학번 없음') + ' ' + (w.name || '') + ' ' + w.score + '점'); }).join(', ') + '</span></div>' : '';
+um.map(function(w){ return esc((w.hakbun || '학번 없음') + ' ' + (w.name || '')); }).join(', ') + '</span></div>' : '';
 }
 async function setGalleryLink(iid, sel){
 const task = evTask(Number(document.getElementById('scTask').value));
 const item = task && task.items.find(function(i){ return i.id === iid; });
 const school = sel.value, prev = ev.galleryLinks[iid] || '';
-if (school && !confirm('"' + item.name + '" 영역에 ' + school + ' 갤러리 평가 점수를 자동으로 입력할까요?\n갤러리 점수가 있는 학생은 지금 입력된 점수가 갤러리 점수로 바뀝니다.')){ sel.value = prev; return; }
+if (school && !confirm('"' + item.name + '" 영역에 ' + school + ' 갤러리 점수를 자동으로 입력할까요?\n갤러리 점수가 있는 학생은 지금 입력된 점수가 갤러리 점수로 바뀝니다.')){ sel.value = prev; return; }
 if (!school && !confirm('"' + item.name + '" 영역의 갤러리 연결을 끊을까요?\n이미 입력된 점수는 그대로 남습니다.')){ sel.value = prev; return; }
 try {
 const res = must(await sb.rpc('eval_gallery_set_link', { p_item_id: iid, p_gallery_school: school }));
@@ -2811,6 +2812,25 @@ await loadEvalData();
 renderScoreTable();
 if (school) showGalleryResult(res, item.name); else toast('연결을 끊었습니다.', 'ok');
 } catch (e) { toast(e.message, 'err'); sel.value = prev; }
+}
+async function linkAllGallery(taskId){
+const task = evTask(taskId), school = guessGallerySchool();
+if (!task || !school) return;
+const todo = task.items.filter(function(it){ return ev.galleryLinks[it.id] !== school; });
+if (!todo.length) return;
+if (!confirm('"' + task.title + '"의 ' + todo.length + '개 영역을 ' + school + ' 갤러리와 연결할까요?\n갤러리 점수가 있는 학생은 지금 입력된 점수가 갤러리 점수로 바뀝니다.')) return;
+let applied = 0, unmatched = [];
+try {
+for (let k = 0; k < todo.length; k++){
+const res = must(await sb.rpc('eval_gallery_set_link', { p_item_id: todo[k].id, p_gallery_school: school }));
+applied += (res && res.applied) || 0;
+(res && res.unmatched || []).forEach(function(w){ unmatched.push(w); });
+}
+} catch (e) { toast(e.message, 'err'); }
+await loadEvalData();
+renderScoreTable();
+const seen = {};
+showGalleryResult({ applied: applied, unmatched: unmatched.filter(function(w){ const k = w.hakbun + '|' + w.name; return seen[k] ? false : (seen[k] = true); }) }, task.title);
 }
 async function syncGalleryItem(iid){
 const task = evTask(Number(document.getElementById('scTask').value));
@@ -2846,7 +2866,7 @@ legend += '</details>' + galleryPanel(task);
 let html = legend + '<div class="ev-scroll"><table class="ev-score"><thead><tr><th class="sc-name">학생</th>';
 task.items.forEach(function(it){
 html += '<th>' + esc(it.name) + '<small>' + evFmt(it.max_score) + '점</small>' +
-(ev.galleryLinks[it.id] ? '<span class="badge ok" title="'+esc(ev.galleryLinks[it.id])+' 갤러리 평가 점수가 자동으로 입력됩니다">갤러리 자동</span>' : '') +
+(ev.galleryLinks[it.id] ? '<span class="badge ok" title="'+esc(ev.galleryLinks[it.id])+' 갤러리 점수표에서 고른 점수가 자동으로 입력됩니다">갤러리 자동</span>' : '') +
 '<small class="sc-allowed">' + allowedScores(it).join(' · ') + '</small>' +
 '<input type="text" inputmode="decimal" class="sc-in" placeholder="일괄" title="빈칸만 이 점수로 채웁니다" onchange="fillScoreColumn(this,'+it.id+')"/></th>';
 });
