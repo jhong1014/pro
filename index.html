@@ -1787,14 +1787,19 @@ async function settingYears(){
 const cur = schoolYearOf(state.today);
 const years = [cur - 1, cur, cur + 1, settings.year];
 try {
+// 표 전체를 읽지 않고, 가장 이른 · 가장 늦은 학년도 한 줄씩만 읽음
+const edge = function(table, col, asc){ return sb.from(table).select(col).order(col, { ascending: asc }).limit(1).then(must); };
 const res = await Promise.all([
-fetchAll(function(){ return sb.from('eval_tasks').select('school_year').order('id'); }),
-fetchAll(function(){ return sb.from('eval_students').select('school_year').order('id'); }),
-sb.from('records').select('date').order('date', { ascending: true }).limit(1).then(must),
-sb.from('records').select('date').order('date', { ascending: false }).limit(1).then(must)
+edge('eval_tasks', 'school_year', true), edge('eval_tasks', 'school_year', false),
+edge('eval_students', 'school_year', true), edge('eval_students', 'school_year', false),
+edge('records', 'date', true), edge('records', 'date', false)
 ]);
-res[0].concat(res[1]).forEach(function(r){ years.push(r.school_year); });
-res[2].concat(res[3]).forEach(function(r){ years.push(schoolYearOf(r.date)); });
+const found = [];
+res.slice(0, 4).forEach(function(rows){ rows.forEach(function(r){ found.push(Number(r.school_year)); }); });
+res.slice(4).forEach(function(rows){ rows.forEach(function(r){ found.push(schoolYearOf(r.date)); }); });
+const ok = found.filter(function(y){ return isFinite(y) && y > 0; });
+// 그 사이 학년도를 모두 고를 수 있게
+if (ok.length) for (let y = Math.min.apply(null, ok); y <= Math.max.apply(null, ok); y++) years.push(y);
 } catch (e) {}
 const lo = Math.min.apply(null, years), hi = Math.max.apply(null, years), out = [];
 for (let y = hi; y >= lo; y--) out.push(y);
@@ -4197,18 +4202,20 @@ for (let i = 0; i < lib.materials.length; i++) if (lib.materials[i].id === id) r
 return null;
 }
 async function loadLibData(){
+// 자료 목록은 학년도와 상관없이 다시 쓰는 것이라 전부 읽고,
+// 사용 내역은 보고 있는 학년도의 진도 기록에 붙은 것만 읽음 (학년도가 쌓여도 느려지지 않게)
 const res = await Promise.all([
-fetchAll(function(){ return sb.from('lesson_materials').select('*').order('id'); }),
-fetchAll(function(){ return sb.from('lesson_material_uses').select('id,material_id,record_id').order('id'); })
+fetchAll(function(){ return sb.from('lesson_materials').select('id,grade,unit,kind,title,url').order('id'); }),
+fetchAll(function(){
+return sb.from('lesson_material_uses').select('id,material_id,record_id,records!inner(id,date,school,class_name)')
+.eq('records.school_year', settings.year).order('id');
+})
 ]);
-const seen = {}, ids = [];
-res[1].forEach(function(u){ if (!seen[u.record_id]){ seen[u.record_id] = true; ids.push(u.record_id); } });
 const recs = {};
-for (let i = 0; i < ids.length; i += 200){
-const rows = must(await sb.from('records').select('id,date,school,class_name').eq('school_year', settings.year).in('id', ids.slice(i, i + 200)));
-rows.forEach(function(r){ recs[r.id] = r; });
-}
-lib.materials = res[0]; lib.uses = res[1]; lib.recs = recs;
+res[1].forEach(function(u){ if (u.records) recs[u.record_id] = u.records; });
+lib.materials = res[0];
+lib.uses = res[1].map(function(u){ return { id: u.id, material_id: u.material_id, record_id: u.record_id }; });
+lib.recs = recs;
 lib.loaded = true;
 }
 function libErrorHtml(e){
