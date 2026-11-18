@@ -3501,7 +3501,7 @@ w.document.close();
 
 /* 학생용 성적 확인표 : 조회 화면을 못 쓸 때 나눠주는 종이 확인표
    - 학생에게 공개된 과제만, 과제별 평가 영역 점수 · 과제 합계 · 300점 만점 환산 총점
-   - A4 한 장에 4명(2×2), 자르는 선 포함 */
+   - 학생 한 명이 가로 띠 한 줄, A4 한 장에 최대한 많이 (자르는 선 포함) */
 function printGradeSlips(){
 const tasks = signTasks();
 if (!tasks.length){ toast('학생에게 공개된 평가가 없습니다.', 'err'); return; }
@@ -3517,50 +3517,38 @@ const lv = evLevel(r.level_id);
 if (lv) scoreOf[r.student_id + ':' + r.item_id] = lv.score;
 });
 const maxAll = tasks.reduce(function(s, t){ return s + taskMax(t); }, 0);
-const printed = seoulDateTime(new Date().toISOString());
+const head = esc(settings.year + '-' + settings.semester + '학기 ' + ev.school);
+// 한 학생 = 가로 띠 한 줄 : 이름 | 과제마다 (평가 영역별 점수 + 합계) | 300점 만점 총점
 const slip = function(x){
 const r = x.r;
-let sumAll = 0, missing = false, body = '';
-tasks.forEach(function(t){
+let sumAll = 0, missing = false;
+const blocks = tasks.map(function(t){
 const vals = t.items.map(function(it){ return scoreOf[r.student_id + ':' + it.id]; });
 const sub = vals.reduce(function(s, v){ return s + (v == null ? 0 : evNum(v)); }, 0);
 if (vals.some(function(v){ return v == null; })) missing = true;
-t.items.forEach(function(it, i){
-const v = vals[i];
-body += '<tr>' + (i === 0 ? '<td class="task" rowspan="' + t.items.length + '">' + esc(t.title) + '</td>' : '') +
-'<td>' + esc(it.name) + '</td><td class="n">' + evFmt(it.max_score) + '</td>' +
-'<td class="n">' + (v == null ? '<span class="miss">채점 전</span>' : evFmt(v)) + '</td>' +
-(i === 0 ? '<td class="sub" rowspan="' + t.items.length + '">' + evFmt(sub) + '<small>/ ' + evFmt(taskMax(t)) + '</small></td>' : '') + '</tr>';
-});
-if (!t.items.length) body += '<tr><td class="task">' + esc(t.title) + '</td><td colspan="3" class="muted">채점 요소 없음</td><td class="sub">0</td></tr>';
 sumAll += sub;
-});
+return '<table class="tk"><tr><th class="tt" colspan="' + (t.items.length + 1) + '">' + esc(t.title) + '</th></tr>' +
+'<tr>' + t.items.map(function(it){ return '<td class="nm">' + esc(it.name) + '<small>' + evFmt(it.max_score) + '</small></td>'; }).join('') +
+'<td class="nm sb">합계<small>' + evFmt(taskMax(t)) + '</small></td></tr>' +
+'<tr>' + vals.map(function(v){ return '<td class="sc">' + (v == null ? '<span class="miss">미채점</span>' : evFmt(v)) + '</td>'; }).join('') +
+'<td class="sc sb">' + evFmt(sub) + '</td></tr></table>';
+}).join('');
 const total = maxAll ? evFmt1(sumAll / maxAll * 300) : '-';
-return '<div class="slip"><div class="head"><b class="who">' + esc(r.class_name) + ' ' + r.number + '번 ' + esc(r.name) + '</b>' +
-'<span>' + esc(termLabel()) + ' ' + esc(ev.school) + '</span></div>' +
-'<table><thead><tr><th>과제</th><th>평가 영역</th><th class="n">배점</th><th class="n">점수</th><th class="n">합계</th></tr></thead><tbody>' +
-body + '</tbody></table>' +
-'<div class="total"><span>총점 <small>(' + evFmt(sumAll) + ' / ' + evFmt(maxAll) + '점 → 300점 만점 환산)</small></span><b>' + total + '<small> / 300</small></b></div>' +
-(missing ? '<div class="note">※ 채점 전 항목은 0점으로 계산되었습니다.</div>' : '') + '</div>';
+return '<div class="slip"><div class="who"><span class="cap">' + head + '</span><b>' + esc(r.class_name) + ' ' + r.number + '번 ' + esc(r.name) + '</b>' +
+'<div class="tot">총점 <b>' + total + '</b> / 300</div>' + (missing ? '<small>미채점 0점 계산</small>' : '') + '</div>' +
+blocks + '</div>';
 };
-let pages = '';
-for (let i = 0; i < rows.length; i += 4)
-pages += '<section>' + rows.slice(i, i + 4).map(slip).join('') + '</section>';
 w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>성적 확인표 ' + esc(ev.school) + '</title>' +
-'<style>@page{size:A4 portrait;margin:8mm}body{font-family:sans-serif;margin:0;color:#000}' +
-'section{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;height:280mm;page-break-after:always;break-after:page}' +
-'section:last-child{page-break-after:auto;break-after:auto}' +
-'.slip{padding:4mm;border-right:1px dashed #999;border-bottom:1px dashed #999;overflow:hidden;box-sizing:border-box}' +
-'.slip:nth-child(2n){border-right:0}.slip:nth-child(n+3){border-bottom:0}' +
-'.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:6px;font-size:10px;gap:4px}' +
-'.head .who{font-size:15px;white-space:nowrap}.head span{text-align:right}' +
-'table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #333;padding:3px 4px}th{background:#eef2f6}' +
-'.n{text-align:center;width:32px;white-space:nowrap}td.task{font-weight:700;width:22%;background:#fafafa}' +
-'td.sub{text-align:center;font-weight:700;width:40px}td.sub small{display:block;font-weight:400;font-size:9px}' +
-'.miss{color:#b00;font-size:9px}.muted{color:#777}' +
-'.total{display:flex;justify-content:space-between;align-items:center;border:1.5px solid #000;margin-top:6px;padding:4px 8px;font-size:12px}' +
-'.total small{font-size:9px;font-weight:400}.total b{font-size:18px}.note{font-size:9px;margin-top:2px}</style></head><body>' +
-pages + '<script>window.onload=function(){window.print()}<\/script></body></html>');
+'<style>@page{size:A4 portrait;margin:7mm}body{font-family:sans-serif;margin:0;color:#000}' +
+'.slip{display:flex;flex-wrap:wrap;align-items:stretch;gap:3px;padding:3px 0 4px;border-bottom:1px dashed #888;break-inside:avoid;page-break-inside:avoid}' +
+'.cap{font-size:6.5px;color:#555;white-space:normal}' +
+'.who{display:flex;flex-direction:column;justify-content:center;border:1.5px solid #000;padding:2px 4px;font-size:10px;width:24mm;box-sizing:border-box;word-break:keep-all}' +
+'table.tk{border-collapse:collapse;font-size:8.5px}table.tk td,table.tk th{border:1px solid #333;padding:1px 2px;text-align:center}' +
+'th.tt{background:#e5e9ef;font-size:9px;white-space:nowrap}' +
+'td.nm{min-width:30px;max-width:62px;line-height:1.15;color:#222}td.nm small{display:block;color:#666;font-size:7.5px}' +
+'td.sc{font-size:10.5px;font-weight:700}td.sb{background:#f3f4f6}.miss{color:#b00;font-size:7.5px;font-weight:400}' +
+'.tot{font-size:8.5px;margin-top:2px;border-top:1px solid #999;padding-top:2px}.tot b{font-size:14px}.who small{font-size:7px;color:#b00}</style></head><body>' +
+rows.map(slip).join('') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
 w.document.close();
 }
 
