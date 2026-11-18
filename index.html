@@ -3500,7 +3500,7 @@ w.document.close();
 }
 
 /* 학생용 성적 확인표 : 조회 화면을 못 쓸 때 나눠주는 종이 확인표
-   - 학생에게 공개된 과제만, 과제별 평가 영역 점수 · 과제 합계
+   - 학생에게 공개된 과제만, 과제별 평가 영역 점수 · 과제 합계 · 300점 만점 환산 총점
    - 학생 한 명이 가로 띠 한 줄, A4 한 장에 최대한 많이 (자르는 선 포함) */
 function printGradeSlips(){
 const tasks = signTasks();
@@ -3516,23 +3516,26 @@ ev.scoreRows.forEach(function(r){
 const lv = evLevel(r.level_id);
 if (lv) scoreOf[r.student_id + ':' + r.item_id] = lv.score;
 });
+const maxAll = tasks.reduce(function(s, t){ return s + taskMax(t); }, 0);
 const head = esc(settings.year + '-' + settings.semester + '학기 ' + ev.school);
-// 한 학생 = 가로 띠 한 줄 : 이름 | 과제마다 (평가 영역별 점수 + 합계)
+// 한 학생 = 가로 띠 한 줄 : 이름 | 과제마다 (평가 영역별 점수 + 합계) | 300점 만점 총점
 const slip = function(x){
 const r = x.r;
-let missing = false;
+let sumAll = 0, missing = false;
 const blocks = tasks.map(function(t){
 const vals = t.items.map(function(it){ return scoreOf[r.student_id + ':' + it.id]; });
 const sub = vals.reduce(function(s, v){ return s + (v == null ? 0 : evNum(v)); }, 0);
 if (vals.some(function(v){ return v == null; })) missing = true;
+sumAll += sub;
 return '<table class="tk"><tr><th class="tt" colspan="' + (t.items.length + 1) + '">' + esc(t.title) + '</th></tr>' +
 '<tr>' + t.items.map(function(it){ return '<td class="nm">' + esc(it.name) + '<small>' + evFmt(it.max_score) + '</small></td>'; }).join('') +
 '<td class="nm sb">합계<small>' + evFmt(taskMax(t)) + '</small></td></tr>' +
 '<tr>' + vals.map(function(v){ return '<td class="sc">' + (v == null ? '<span class="miss">미채점</span>' : evFmt(v)) + '</td>'; }).join('') +
 '<td class="sc sb">' + evFmt(sub) + '</td></tr></table>';
 }).join('');
+const total = maxAll ? evFmt1(sumAll / maxAll * 300) : '-';
 return '<div class="slip"><div class="who"><span class="cap">' + head + '</span><b>' + esc(r.class_name) + ' ' + r.number + '번 ' + esc(r.name) + '</b>' +
-(missing ? '<small>미채점은 0점으로 합계</small>' : '') + '</div>' +
+'<div class="tot">총점 <b>' + total + '</b> / 300</div>' + (missing ? '<small>미채점 0점 계산</small>' : '') + '</div>' +
 blocks + '</div>';
 };
 w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>성적 확인표 ' + esc(ev.school) + '</title>' +
@@ -3544,7 +3547,7 @@ w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><ti
 'th.tt{background:#e5e9ef;font-size:9px;white-space:nowrap}' +
 'td.nm{min-width:30px;max-width:62px;line-height:1.15;color:#222}td.nm small{display:block;color:#666;font-size:7.5px}' +
 'td.sc{font-size:10.5px;font-weight:700}td.sb{background:#f3f4f6}.miss{color:#b00;font-size:7.5px;font-weight:400}' +
-'.who small{font-size:7px;color:#b00}</style></head><body>' +
+'.tot{font-size:8.5px;margin-top:2px;border-top:1px solid #999;padding-top:2px}.tot b{font-size:14px}.who small{font-size:7px;color:#b00}</style></head><body>' +
 rows.map(slip).join('') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
 w.document.close();
 }
