@@ -941,8 +941,9 @@ body{padding:12px}
 <!-- 수행평가 : 성적 확인 서명 -->
 <div id="esignCard" class="card" style="display:none">
 <h2>성적 확인 서명</h2>
-<div class="row">
-<label class="field">반<select id="sgClass" onchange="renderSignTable()"></select></label>
+<div class="flex" style="align-items:flex-end">
+<label class="field" style="flex:1; min-width:160px">반<select id="sgClass" onchange="renderSignTable()"></select></label>
+<button class="btn" onclick="openSignViewer()">✍ 한 명씩 확인 · 서명</button>
 </div>
 <div id="sgBody" style="margin-top:12px"></div>
 </div>
@@ -3506,7 +3507,6 @@ let html = '<div class="flex" style="margin-bottom:10px; align-items:center; jus
 '<div style="font-size:13px">서명 완료 <b>' + cnt.ok + '</b> · 재확인 필요 <b>' + cnt.stale + '</b> · 미서명 <b>' + cnt.none + '</b> / ' + rows.length + '명</div>' +
 '<div class="flex" style="align-items:center; gap:8px">' +
 '<label style="font-size:13px; display:flex; align-items:center; gap:4px"><input type="checkbox" id="slipUnsigned"/>미서명 · 재확인만</label>' +
-'<button class="btn sm" onclick="openSignViewer()"' + (tasks.length ? '' : ' disabled') + '>한 명씩 확인 · 서명</button>' +
 '<button class="btn ghost sm" onclick="printGradeSlips()">학생용 성적 확인표 인쇄</button>' +
 '<button class="btn sm" onclick="printSignatures()">서명 자료 인쇄</button></div></div>';
 if (!tasks.length) html += '<div class="ev-notice"><span>학생에게 공개된 평가가 없어 학생이 서명할 수 없습니다. [평가 기준]에서 공개해 주세요.</span></div>';
@@ -3523,7 +3523,7 @@ x.cells.map(function(c){ return '<td class="num">' + (c || '<span class="muted">
 });
 html += '</tbody></table></div>' +
 '<div class="hint">서명 뒤 점수가 바뀌면 "재확인 필요"로 표시되고, 학생 화면에서 다시 서명하도록 안내됩니다. ' +
-'[한 명씩 확인 · 서명]이나 학생 이름을 누르면 선생님 화면에서 학생별 성적을 보여 주고 바로 서명받을 수 있습니다.</div>';
+'위의 [한 명씩 확인 · 서명]이나 학생 이름을 누르면 선생님 화면에서 학생별 성적을 보여 주고 바로 서명받을 수 있습니다.</div>';
 box.innerHTML = html;
 }
 async function deleteSignature(studentId){
@@ -3629,6 +3629,7 @@ w.document.close();
      → 학생이 직접 서명한 것과 똑같이 "서명 완료 / 재확인 필요"가 판정됨 */
 const sv = { list: [], idx: 0, pad: null, saving: false };
 function openSignViewer(studentId){
+if (!ev.school){ toast('학교를 먼저 선택하세요.', 'err'); return; }
 if (!signTasks().length){ toast('학생에게 공개된 평가가 없습니다.', 'err'); return; }
 document.getElementById('svOnly').checked = false;
 sv.list = signRows();
