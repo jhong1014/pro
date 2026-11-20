@@ -439,6 +439,50 @@ background:#fffbeb; border:1px solid #fde68a; border-radius:10px; font-size:13px
 .sg-img{height:34px; max-width:110px; display:block; background:#fff; border:1px solid var(--border); border-radius:6px}
 .sg-ok{color:var(--ok); font-weight:700}
 .sg-stale{color:var(--warn); font-weight:700}
+.sg-name{cursor:pointer; color:var(--primary-ink); font-weight:600}
+.sg-name:hover{text-decoration:underline}
+/* 교사용 한 명씩 확인 · 서명 */
+.modal.sv{max-width:820px; padding:0; overflow:hidden; display:flex; flex-direction:column}
+.sv-top{padding:14px 18px; color:#fff; background:linear-gradient(135deg,var(--primary) 0%,var(--primary-2) 55%,var(--accent) 100%);
+display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.sv-top .cap{font-size:12px; opacity:.9}
+.sv-top .who{font-size:20px; font-weight:800; letter-spacing:-.3px}
+.sv-top .close{background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.25); width:34px; height:34px;
+border-radius:999px; cursor:pointer; font-size:16px; font-weight:700; font-family:inherit}
+.sv-nav{display:flex; align-items:center; gap:8px; padding:10px 18px; border-bottom:1px solid var(--border); background:#f8fafc; flex-wrap:wrap}
+.sv-nav select{flex:1; min-width:150px}
+.sv-nav .pos{font-size:13px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums}
+.sv-nav label{font-size:13px; display:flex; align-items:center; gap:4px; white-space:nowrap}
+.sv-body{padding:14px 18px; overflow:auto; flex:1}
+.sv-task{border:1px solid var(--border); border-radius:12px; margin-bottom:10px; overflow:hidden; background:#fff}
+.sv-task-head{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px; background:var(--primary-soft);
+color:var(--primary-ink); font-weight:700; font-size:14px}
+.sv-task-head b{font-size:16px; white-space:nowrap}
+.sv-task-head b small{font-size:12px; font-weight:600; opacity:.75}
+.sv-items{display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); border-top:1px solid var(--border); margin-right:-1px; margin-bottom:-1px}
+.sv-item{background:#fff; padding:8px 10px; text-align:center; border-right:1px solid var(--border); border-bottom:1px solid var(--border)}
+.sv-item .nm{font-size:12px; color:#334155; line-height:1.3; word-break:keep-all}
+.sv-item .nm small{display:block; color:var(--muted); font-size:11px}
+.sv-item .sc{font-size:20px; font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums}
+.sv-item .sc.miss{font-size:12px; font-weight:600; color:var(--danger)}
+.sv-total{display:flex; justify-content:space-between; align-items:center; gap:8px; border:1.5px solid var(--primary-line);
+background:linear-gradient(135deg,var(--primary-soft),#fff); border-radius:12px; padding:10px 14px; margin-bottom:12px}
+.sv-total .v{font-size:24px; font-weight:800; color:var(--primary-ink); white-space:nowrap}
+.sv-total .v small{font-size:13px; color:var(--muted); font-weight:600}
+.sv-sign{border-top:1px solid var(--border); padding-top:12px}
+.sv-sign h4{margin:0 0 8px; font-size:14px; display:flex; align-items:center; gap:8px}
+.sv-pad{position:relative; border:2px dashed var(--border-strong); border-radius:12px; background:#fff}
+.sv-pad canvas{display:block; width:100%; height:160px; touch-action:none; cursor:crosshair}
+.sv-pad .hint2{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:15px; pointer-events:none}
+.sv-signed{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.sv-signed img{height:70px; max-width:240px; border:1px solid var(--border); border-radius:8px; background:#fff}
+.sv-foot{display:flex; gap:8px; justify-content:space-between; align-items:center; padding:12px 18px; border-top:1px solid var(--border); flex-wrap:wrap}
+.sv-foot .r{display:flex; gap:8px; flex-wrap:wrap}
+.modal.sv .btn:disabled{opacity:.5; cursor:default; transform:none; box-shadow:none}
+@media (max-width:560px){
+.sv-top .who{font-size:17px} .sv-items{grid-template-columns:repeat(2, 1fr)}
+.sv-foot .hint, .sv-foot .side{display:none} .sv-foot .r, .sv-foot #svSave{flex:1; justify-content:center}
+}
 /* 대시보드 */
 .dash-top{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-bottom:14px}
 .dash-top > .card, .dash-row > .card, .dash-row2 > .card{margin-bottom:0}
@@ -897,8 +941,9 @@ body{padding:12px}
 <!-- 수행평가 : 성적 확인 서명 -->
 <div id="esignCard" class="card" style="display:none">
 <h2>성적 확인 서명</h2>
-<div class="row">
-<label class="field">반<select id="sgClass" onchange="renderSignTable()"></select></label>
+<div class="flex" style="align-items:flex-end">
+<label class="field" style="flex:1; min-width:160px">반<select id="sgClass" onchange="renderSignTable()"></select></label>
+<button class="btn" onclick="openSignViewer()">✍ 한 명씩 확인 · 서명</button>
 </div>
 <div id="sgBody" style="margin-top:12px"></div>
 </div>
@@ -1083,6 +1128,31 @@ body{padding:12px}
 <div class="actions">
 <button class="btn ghost" onclick="closeCopyModal()">취소</button>
 <button class="btn" onclick="doCopyTask()">복사</button>
+</div>
+</div>
+</div>
+<!-- 교사용 한 명씩 성적 확인 · 서명 -->
+<div class="modal-back" id="svModal" onclick="if(event.target===this)closeSignViewer()">
+<div class="modal sv">
+<div class="sv-top">
+<div><div class="cap" id="svCap"></div><div class="who" id="svWho"></div></div>
+<button type="button" class="close" onclick="closeSignViewer()" aria-label="닫기">✕</button>
+</div>
+<div class="sv-nav">
+<button class="btn ghost sm" onclick="svMove(-1)">◀ 이전</button>
+<select id="svPick" onchange="svGo(Number(this.value))"></select>
+<button class="btn ghost sm" onclick="svMove(1)">다음 ▶</button>
+<span class="pos" id="svPos"></span>
+<label><input type="checkbox" id="svOnly" onchange="svFilter()"/>미서명 · 재확인만</label>
+</div>
+<div class="sv-body" id="svBody"></div>
+<div class="sv-foot">
+<span class="hint" style="margin:0">← → 키로 이전 · 다음 학생</span>
+<div class="r">
+<button class="btn ghost side" onclick="svMove(-1)">◀ 이전</button>
+<button class="btn ok" id="svSave" onclick="svSave()" disabled>서명 저장 후 다음 ▶</button>
+<button class="btn ghost side" onclick="svMove(1)">다음 ▶</button>
+</div>
 </div>
 </div>
 </div>
@@ -3445,14 +3515,15 @@ tasks.map(function(t){ return '<th class="num" style="white-space:normal; min-wi
 '<th>상태</th><th>서명일시</th><th>서명</th><th></th></tr></thead><tbody>';
 rows.forEach(function(x){
 const r = x.r;
-html += '<tr>' + (all ? '<td>' + esc(r.class_name) + '</td>' : '') + '<td class="num">' + r.number + '</td><td>' + esc(r.name) + '</td>' +
+html += '<tr>' + (all ? '<td>' + esc(r.class_name) + '</td>' : '') + '<td class="num">' + r.number + '</td><td><span class="sg-name" onclick="openSignViewer(' + r.student_id + ')">' + esc(r.name) + '</span></td>' +
 x.cells.map(function(c){ return '<td class="num">' + (c || '<span class="muted">-</span>') + '</td>'; }).join('') +
 '<td>' + SIGN_STATUS[x.status] + '</td><td style="font-size:12px">' + esc(seoulTime(r.signed_at)) + '</td>' +
 '<td>' + (r.signature ? '<img class="sg-img" src="' + esc(r.signature) + '" alt="서명"/>' : '') + '</td>' +
 '<td>' + (r.signed_at ? '<button class="btn ghost sm" onclick="deleteSignature(' + r.student_id + ')">서명 지우기</button>' : '') + '</td></tr>';
 });
 html += '</tbody></table></div>' +
-'<div class="hint">서명 뒤 점수가 바뀌면 "재확인 필요"로 표시되고, 학생 화면에서 다시 서명하도록 안내됩니다.</div>';
+'<div class="hint">서명 뒤 점수가 바뀌면 "재확인 필요"로 표시되고, 학생 화면에서 다시 서명하도록 안내됩니다. ' +
+'위의 [한 명씩 확인 · 서명]이나 학생 이름을 누르면 선생님 화면에서 학생별 성적을 보여 주고 바로 서명받을 수 있습니다.</div>';
 box.innerHTML = html;
 }
 async function deleteSignature(studentId){
@@ -3551,6 +3622,195 @@ w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><ti
 rows.map(slip).join('') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
 w.document.close();
 }
+
+/* 교사용 한 명씩 확인 · 서명
+   - 선생님이 반 학생을 번호 순으로 이전 · 다음으로 넘기며 과제 · 평가 영역 점수를 보여 주고 그 자리에서 서명을 받음
+   - 화면에 보이는 성적(eval_signature_list 의 current)을 그대로 snapshot 으로 저장
+     → 학생이 직접 서명한 것과 똑같이 "서명 완료 / 재확인 필요"가 판정됨 */
+const sv = { list: [], idx: 0, pad: null, saving: false };
+function openSignViewer(studentId){
+if (!ev.school){ toast('학교를 먼저 선택하세요.', 'err'); return; }
+if (!signTasks().length){ toast('학생에게 공개된 평가가 없습니다.', 'err'); return; }
+document.getElementById('svOnly').checked = false;
+sv.list = signRows();
+if (!sv.list.length){ toast('학생이 없습니다.', 'err'); return; }
+const i = studentId ? sv.list.findIndex(function(x){ return x.r.student_id === studentId; }) : 0;
+document.getElementById('svModal').classList.add('show');
+svGo(Math.max(0, i));
+}
+function closeSignViewer(){
+document.getElementById('svModal').classList.remove('show');
+sv.pad = null;
+}
+// 미서명 · 재확인만 보기 : 지금 학생이 목록에 남아 있으면 그대로, 아니면 첫 학생
+function svFilter(){
+const cur = sv.list[sv.idx] && sv.list[sv.idx].r.student_id;
+const only = document.getElementById('svOnly').checked;
+sv.list = signRows().filter(function(x){ return !only || x.status !== 'ok'; });
+if (!sv.list.length){
+document.getElementById('svOnly').checked = false;
+sv.list = signRows();
+toast('미서명 · 재확인 필요 학생이 없습니다.', 'ok');
+}
+const i = sv.list.findIndex(function(x){ return x.r.student_id === cur; });
+svGo(Math.max(0, i));
+}
+function svMove(d){
+if (!sv.list.length) return;
+const i = sv.idx + d;
+if (i < 0){ toast('첫 번째 학생입니다.'); return; }
+if (i >= sv.list.length){ toast('마지막 학생입니다.'); return; }
+svGo(i);
+}
+function svGo(i){
+sv.idx = i;
+const x = sv.list[i];
+const r = x.r;
+const all = !document.getElementById('sgClass').value;
+document.getElementById('svCap').textContent = termLabel() + ' · ' + ev.school;
+document.getElementById('svWho').textContent = r.class_name + ' ' + r.number + '번 ' + r.name;
+document.getElementById('svPos').textContent = (i + 1) + ' / ' + sv.list.length;
+document.getElementById('svPick').innerHTML = sv.list.map(function(y, k){
+return '<option value="' + k + '"' + (k === i ? ' selected' : '') + '>' + esc((all ? y.r.class_name + ' ' : '') + y.r.number + '번 ' + y.r.name) +
+(y.status === 'ok' ? ' ✔' : y.status === 'stale' ? ' (재확인)' : '') + '</option>';
+}).join('');
+// 과제별 평가 영역 점수 (서명할 때 저장될 현재 성적)
+const tasks = signTasks();
+const cur = {};
+(r.current || []).forEach(function(t){ cur[t.id] = t; });
+const maxAll = tasks.reduce(function(s, t){ return s + taskMax(t); }, 0);
+let sumAll = 0, missing = false, html = '';
+tasks.forEach(function(t){
+const c = cur[t.id];
+// 점수가 있으면 서명에 저장될 그 성적(snapshot과 같은 모양)을 그대로, 없으면 평가 기준의 채점 요소만
+const items = c ? c.items : t.items.map(function(it){ return { name: it.name, max_score: it.max_score, score: null }; });
+let sub = 0;
+const cells = items.map(function(it){
+const v = it.score;
+if (v == null) missing = true; else sub += evNum(v);
+return '<div class="sv-item"><div class="nm">' + esc(it.name) + '<small>' + evFmt(it.max_score) + '점</small></div>' +
+(v == null ? '<div class="sc miss">미채점</div>' : '<div class="sc">' + evFmt(v) + '</div>') + '</div>';
+}).join('');
+sumAll += sub;
+html += '<div class="sv-task"><div class="sv-task-head"><span>' + esc(t.title) + '</span><b>' + evFmt(sub) + '<small> / ' + evFmt(taskMax(t)) + '</small></b></div>' +
+(items.length ? '<div class="sv-items">' + cells + '</div>' : '<div class="sv-item muted">채점 요소 없음</div>') + '</div>';
+});
+html += '<div class="sv-total"><div><b>총점</b> <span class="muted" style="font-size:12px">(' + evFmt(sumAll) + ' / ' + evFmt(maxAll) + '점 → 300점 만점 환산)</span>' +
+(missing ? '<div style="font-size:12px; color:var(--danger)">미채점 항목은 0점으로 계산</div>' : '') + '</div>' +
+'<div class="v">' + (maxAll ? evFmt1(sumAll / maxAll * 300) : '-') + '<small> / 300</small></div></div>';
+// 서명
+const canSign = (r.current || []).length > 0;
+html += '<div class="sv-sign"><h4>성적 확인 서명 ' + SIGN_STATUS[x.status] + '</h4>';
+if (!canSign){
+html += '<div class="ev-notice"><span>이 학생은 공개된 과제에 입력된 점수가 없어 서명할 수 없습니다.</span></div>';
+} else if (x.status === 'ok'){
+html += '<div class="sv-signed"><img src="' + esc(r.signature) + '" alt="서명"/><div><div class="sg-ok">✔ ' + esc(seoulTime(r.signed_at)) + ' 서명 완료</div>' +
+'<button class="btn ghost sm" style="margin-top:6px" onclick="svResign()">다시 서명받기</button></div></div>';
+} else {
+html += svPadHtml(x.status === 'stale');
+}
+html += '</div>';
+document.getElementById('svBody').innerHTML = html;
+document.getElementById('svBody').scrollTop = 0;
+svSetupPad();
+}
+function svPadHtml(stale){
+return (stale ? '<div class="ev-notice"><span>서명한 뒤 점수가 바뀌었습니다. 바뀐 성적을 확인하고 다시 서명받으세요.</span></div>' : '') +
+'<div class="sv-pad"><canvas id="svCanvas"></canvas><div class="hint2" id="svHint">학생이 여기에 서명하세요</div></div>' +
+'<div class="flex" style="margin-top:8px; justify-content:space-between; align-items:center">' +
+'<span class="hint" style="margin:0">성적에 이상이 있으면 서명하지 말고 점수를 먼저 고치세요.</span>' +
+'<button class="btn ghost sm" onclick="svClear()">서명 지우기</button></div>';
+}
+function svResign(){
+const box = document.querySelector('#svBody .sv-sign');
+box.innerHTML = '<h4>성적 확인 서명 ' + SIGN_STATUS.ok + '</h4>' + svPadHtml(false);
+svSetupPad();
+}
+function svSetupPad(){
+const cv = document.getElementById('svCanvas');
+sv.pad = null;
+document.getElementById('svSave').disabled = true;
+if (!cv) return;
+const ratio = window.devicePixelRatio || 1;
+cv.width = cv.clientWidth * ratio;
+cv.height = cv.clientHeight * ratio;
+const g = cv.getContext('2d');
+g.scale(ratio, ratio);
+g.lineWidth = 2.5; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#0f172a';
+const pad = sv.pad = { cv: cv, g: g, drawing: false, strokes: 0 };
+function pos(e){ const b = cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; }
+cv.addEventListener('pointerdown', function(e){
+e.preventDefault();
+cv.setPointerCapture(e.pointerId);
+pad.drawing = true;
+const p = pos(e);
+g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + 0.1, p.y + 0.1); g.stroke();
+});
+cv.addEventListener('pointermove', function(e){
+if (!pad.drawing) return;
+const p = pos(e);
+g.lineTo(p.x, p.y); g.stroke();
+});
+function end(){
+if (!pad.drawing) return;
+pad.drawing = false;
+pad.strokes++;
+document.getElementById('svHint').style.display = 'none';
+document.getElementById('svSave').disabled = false;
+}
+cv.addEventListener('pointerup', end);
+cv.addEventListener('pointercancel', end);
+cv.addEventListener('pointerleave', end);
+}
+function svClear(){
+if (!sv.pad) return;
+sv.pad.g.clearRect(0, 0, sv.pad.cv.width, sv.pad.cv.height);
+sv.pad.strokes = 0;
+document.getElementById('svHint').style.display = '';
+document.getElementById('svSave').disabled = true;
+}
+async function svSave(){
+const x = sv.list[sv.idx];
+if (!x || !sv.pad || !sv.pad.strokes || sv.saving) return;
+const btn = document.getElementById('svSave');
+btn.disabled = true;
+sv.saving = true;
+// 학생 화면과 같이 가로 400px PNG로 줄여서 저장
+const out = document.createElement('canvas');
+out.width = 400;
+out.height = Math.round(400 * sv.pad.cv.height / sv.pad.cv.width);
+out.getContext('2d').drawImage(sv.pad.cv, 0, 0, out.width, out.height);
+try {
+must(await sb.from('eval_signatures').upsert({
+student_id: x.r.student_id, semester: settings.semester, snapshot: x.r.current,
+signature: out.toDataURL('image/png'), signed_at: new Date().toISOString()
+}, { onConflict: 'student_id,semester' }));
+await loadSignatures();
+renderSignTable();
+toast(x.r.number + '번 ' + x.r.name + ' 서명을 저장했습니다.', 'ok');
+// 새로 불러온 서명 상태로 목록을 다시 만들고, 다음 학생으로
+const only = document.getElementById('svOnly').checked;
+const id = x.r.student_id;
+const fresh = signRows();
+const pos = fresh.findIndex(function(y){ return y.r.student_id === id; });
+sv.list = fresh.filter(function(y){ return !only || y.status !== 'ok' || y.r.student_id === id; });
+let i = sv.list.findIndex(function(y){ return y.r.student_id === id; });
+if (i < 0) i = Math.max(0, Math.min(pos, sv.list.length - 1));
+if (i + 1 < sv.list.length) svGo(i + 1);
+else { svGo(i); toast('마지막 학생까지 확인했습니다.', 'ok'); }
+} catch (e) {
+toast(e.message, 'err');
+btn.disabled = false;
+} finally { sv.saving = false; }
+}
+document.addEventListener('keydown', function(e){
+if (!document.getElementById('svModal').classList.contains('show')) return;
+if (e.key === 'Escape'){ closeSignViewer(); return; }
+const tag = (e.target && e.target.tagName) || '';
+if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+if (e.key === 'ArrowLeft'){ e.preventDefault(); svMove(-1); }
+if (e.key === 'ArrowRight'){ e.preventDefault(); svMove(1); }
+});
 
 /* ============== 학생 명단 ============== */
 function renderStudentView(){
