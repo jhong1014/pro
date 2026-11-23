@@ -944,7 +944,10 @@ body{padding:12px}
 <div class="flex" style="align-items:flex-end">
 <label class="field" style="flex:1; min-width:160px">반<select id="sgClass" onchange="renderSignTable()"></select></label>
 <button class="btn" onclick="openSignViewer()">✍ 한 명씩 확인 · 서명</button>
+<button class="btn ghost" onclick="document.getElementById('neisFile').click()" title="나이스에서 내려받은 수행평가 통계표의 비고란에 학생 서명을 넣어 다시 내려받습니다">📥 나이스 통계표에 서명 넣기</button>
+<input type="file" id="neisFile" accept=".xlsx,.xls" style="display:none" onchange="neisSignFile(this)"/>
 </div>
+<div id="neisResult"></div>
 <div id="sgBody" style="margin-top:12px"></div>
 </div>
 <!-- 수행평가 : 학생 명단 -->
@@ -3568,6 +3571,220 @@ w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><ti
 'td:nth-child(-n+2),td:last-child,th:nth-child(-n+2),th:last-child{white-space:nowrap}</style></head><body>' +
 (pages || '<p>학생이 없습니다.</p>') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
 w.document.close();
+}
+
+/* ============== 나이스 수행평가 통계표에 서명 넣기 ==============
+   - 나이스에서 내려받은 엑셀(.xlsx / .xls)을 올리면 시트마다 "번호" · "비고" 머리글을 찾고
+     학생 행의 비고 칸에 서명 그림(서명 완료 상태만)을 칸 크기에 맞춰 넣은 뒤 _서명.xlsx 로 내려받음
+   - 반 : 시트 안의 "1학년 3반" 같은 글자 → 반 열 → 위에서 고른 반 순서로 찾음
+   - 이름 열이 있으면 이름이 같은지도 확인 (다르면 넣지 않고 알려 줌)
+   - .xls 는 SheetJS로 .xlsx 로 바꾼 뒤 넣음 (글꼴 · 테두리 같은 서식은 일부 빠질 수 있음) */
+const NEIS_LIBS = {
+exceljs: 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+xlsx: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+};
+function loadScriptOnce(src){
+loadScriptOnce.p = loadScriptOnce.p || {};
+if (!loadScriptOnce.p[src]) loadScriptOnce.p[src] = new Promise(function(ok, fail){
+const s = document.createElement('script');
+s.src = src; s.onload = ok;
+s.onerror = function(){ delete loadScriptOnce.p[src]; fail(new Error('엑셀 처리 도구를 불러오지 못했습니다. 인터넷 연결을 확인하세요.')); };
+document.head.appendChild(s);
+});
+return loadScriptOnce.p[src];
+}
+const neisNorm = function(v){ return String(v == null ? '' : v).replace(/\s+/g, ''); };
+function neisCellText(cell){
+const v = cell.value;
+if (v == null) return '';
+if (typeof v === 'object'){
+if (v.richText) return v.richText.map(function(t){ return t.text; }).join('');
+if (v.result != null) return String(v.result);
+if (v.text != null) return String(v.text);
+}
+return String(v);
+}
+// 서명 그림의 빈 여백을 잘라 내고 흰 배경 위에 그린 PNG (base64, 가로 · 세로 크기)
+function neisTrimSignature(dataUrl){
+return new Promise(function(ok){
+const img = new Image();
+img.onload = function(){
+const c = document.createElement('canvas');
+c.width = img.width; c.height = img.height;
+const g = c.getContext('2d');
+g.drawImage(img, 0, 0);
+const d = g.getImageData(0, 0, c.width, c.height).data;
+let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++){
+const i = (y * c.width + x) * 4;
+// 투명하지 않고 흰색에 가깝지 않은 점 = 서명 획
+if (d[i + 3] > 20 && (d[i] < 235 || d[i + 1] < 235 || d[i + 2] < 235)){
+if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+}
+}
+if (x1 < 0){ x0 = 0; y0 = 0; x1 = c.width - 1; y1 = c.height - 1; }
+const pad = 6;
+x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+x1 = Math.min(c.width - 1, x1 + pad); y1 = Math.min(c.height - 1, y1 + pad);
+const out = document.createElement('canvas');
+out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+ok({ base64: out.toDataURL('image/png').split(',')[1], w: out.width, h: out.height });
+};
+img.onerror = function(){ ok(null); };
+img.src = dataUrl;
+});
+}
+// 엑셀 열 너비(글자 수) · 행 높이(pt) → 화면 픽셀
+const neisColPx = function(ws, c){ const w = ws.getColumn(c).width; return Math.round((w || 8.43) * 7 + 5); };
+const neisRowPx = function(ws, r){ const h = ws.getRow(r).height; return Math.round((h || 15) * 96 / 72); };
+// 병합된 칸이면 병합 범위, 아니면 그 칸 하나
+function neisCellRange(ws, r, c){
+const merges = (ws.model && ws.model.merges) || [];
+for (let k = 0; k < merges.length; k++){
+const m = merges[k].match(/^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/);
+if (!m) continue;
+const col = function(s){ let n = 0; for (let i = 0; i < s.length; i++) n = n * 26 + s.charCodeAt(i) - 64; return n; };
+const t = +m[2], b = +m[4], l = col(m[1]), rt = col(m[3]);
+if (r >= t && r <= b && c >= l && c <= rt) return { t: t, b: b, l: l, r: rt };
+}
+return { t: r, b: r, l: c, r: c };
+}
+// 범위 안 픽셀 위치 → ExcelJS 앵커 (0부터 세는 소수 열 · 행 번호)
+function neisAnchor(sizes, start, px){
+for (let i = 0; i < sizes.length; i++){
+if (px <= sizes[i] || i === sizes.length - 1) return start - 1 + i + Math.min(1, px / sizes[i]);
+px -= sizes[i];
+}
+return start - 1;
+}
+// 시트에서 "번호" · "비고" 가 함께 있는 머리글 행 찾기
+function neisFindHeader(ws){
+const last = Math.min(ws.rowCount, 40);
+for (let r = 1; r <= last; r++){
+const cols = {};
+ws.getRow(r).eachCell({ includeEmpty: false }, function(cell, c){
+const t = neisNorm(neisCellText(cell));
+if (!cols.num && /^(번호|출석번호)$/.test(t)) cols.num = c;
+else if (!cols.name && /^(성명|이름|학생명|학생이름)$/.test(t)) cols.name = c;
+else if (!cols.note && /^비고$/.test(t)) cols.note = c;
+else if (!cols.cls && /^(반|학년반|학반)$/.test(t)) cols.cls = c;
+});
+if (cols.num && cols.note) { cols.row = r; return cols; }
+}
+return null;
+}
+// "1학년 3반" · "1-3" 같은 글자 → 학생 명단의 반 이름
+function neisMatchClass(text){
+const t = String(text || '');
+const classes = evClasses();
+const m = t.match(/(\d+)\s*학년\s*(\d+)\s*반/) || t.match(/(?:^|[^\d])([1-6])\s*[-–]\s*(\d{1,2})(?:[^\d]|$)/);
+if (!m) return null;
+const g = +m[1], k = +m[2];
+return classes.find(function(c){
+const n = String(c).match(/(\d+)\D+(\d+)/);
+return n && +n[1] === g && +n[2] === k;
+}) || null;
+}
+async function neisSignFile(input){
+const file = input.files && input.files[0];
+input.value = '';
+if (!file) return;
+const box = document.getElementById('neisResult');
+if (!ev.school){ toast('학교를 먼저 선택하세요.', 'err'); return; }
+box.innerHTML = '<div class="ev-notice"><span>엑셀 파일을 처리하는 중입니다…</span></div>';
+try {
+await loadSignatures();
+await loadScriptOnce(NEIS_LIBS.exceljs);
+let buf = await file.arrayBuffer();
+const wb = new ExcelJS.Workbook();
+try {
+if (/\.xls$/i.test(file.name)) throw new Error('xls');
+await wb.xlsx.load(buf);
+} catch (e) {
+// .xls (또는 ExcelJS가 못 읽는 파일) → SheetJS로 .xlsx 로 바꿔서 다시 읽기
+await loadScriptOnce(NEIS_LIBS.xlsx);
+const sj = XLSX.read(buf, { type: 'array', cellStyles: true });
+buf = XLSX.write(sj, { type: 'array', bookType: 'xlsx', cellStyles: true });
+await wb.xlsx.load(buf);
+// 바꾼 파일은 기본 행 높이가 빠져 있어 그림 위치가 어긋나 보일 수 있음 → 15pt로 채움
+wb.worksheets.forEach(function(w){ w.properties.defaultRowHeight = 15; });
+}
+const pickedClass = document.getElementById('sgClass').value;
+const signs = ev.signs || [];
+const trimmed = {};
+const res = { put: [], stale: [], none: [], mismatch: [], unknown: [], sheets: [] };
+for (const ws of wb.worksheets){
+const h = neisFindHeader(ws);
+if (!h) continue;
+// 머리글 위쪽 글자 + 시트 이름에서 반 찾기
+let above = ws.name + ' ';
+for (let r = 1; r < h.row; r++) ws.getRow(r).eachCell(function(cell){ above += neisCellText(cell) + ' '; });
+const sheetClass = neisMatchClass(above) || pickedClass || null;
+let count = 0;
+for (let r = h.row + 1; r <= ws.rowCount; r++){
+const row = ws.getRow(r);
+const numText = neisNorm(neisCellText(row.getCell(h.num)));
+if (!/^\d+$/.test(numText)) continue;
+const number = +numText;
+const name = h.name ? neisNorm(neisCellText(row.getCell(h.name))) : '';
+const cls = (h.cls && neisMatchClass(neisCellText(row.getCell(h.cls)))) || sheetClass;
+let cand = signs.filter(function(s){ return s.number === number && (!cls || s.class_name === cls); });
+if (!cls && name) cand = cand.filter(function(s){ return neisNorm(s.name) === name; });
+const label = (cls ? cls + ' ' : '') + number + '번' + (name ? ' ' + name : '');
+if (cand.length !== 1){ res.unknown.push(label); continue; }
+const s = cand[0];
+if (name && neisNorm(s.name) !== name){ res.mismatch.push(label + ' (명단: ' + s.name + ')'); continue; }
+if (!s.signed_at){ res.none.push(label); continue; }
+if (!s.matches){ res.stale.push(label); continue; }
+if (!(s.student_id in trimmed)) trimmed[s.student_id] = await neisTrimSignature(s.signature);
+const pic = trimmed[s.student_id];
+if (!pic){ res.unknown.push(label); continue; }
+// 비고 칸(병합 포함) 크기 계산, 너무 낮으면 행 높이를 조금 늘림
+const rg = neisCellRange(ws, r, h.note);
+if (rg.t === rg.b && neisRowPx(ws, r) < 26) ws.getRow(r).height = 20;
+const ws_ = []; for (let c = rg.l; c <= rg.r; c++) ws_.push(neisColPx(ws, c));
+const hs_ = []; for (let rr = rg.t; rr <= rg.b; rr++) hs_.push(neisRowPx(ws, rr));
+const cw = ws_.reduce(function(a, b){ return a + b; }, 0), ch = hs_.reduce(function(a, b){ return a + b; }, 0);
+const scale = Math.min((cw - 4) / pic.w, (ch - 4) / pic.h);
+const iw = Math.max(1, Math.floor(pic.w * scale)), ih = Math.max(1, Math.floor(pic.h * scale));
+const imgId = wb.addImage({ base64: pic.base64, extension: 'png' });
+ws.addImage(imgId, {
+tl: { col: neisAnchor(ws_, rg.l, (cw - iw) / 2), row: neisAnchor(hs_, rg.t, (ch - ih) / 2) },
+ext: { width: iw, height: ih },
+editAs: 'oneCell'
+});
+res.put.push(label);
+count++;
+}
+res.sheets.push(ws.name + (sheetClass ? ' (' + sheetClass + ')' : '') + ' ' + count + '명');
+}
+if (!res.sheets.length){
+box.innerHTML = '<div class="ev-notice"><span>"번호"와 "비고" 머리글이 있는 표를 찾지 못했습니다. 나이스에서 내려받은 수행평가 통계표인지 확인해 주세요.</span></div>';
+return;
+}
+if (res.put.length){
+const out = await wb.xlsx.writeBuffer();
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+a.download = file.name.replace(/\.xlsx?$/i, '') + '_서명.xlsx';
+document.body.appendChild(a); a.click(); a.remove();
+setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+}
+const list = function(title, arr){
+return arr.length ? '<div style="margin-top:4px"><b>' + title + ' ' + arr.length + '명</b> : ' + arr.map(esc).join(', ') + '</div>' : '';
+};
+box.innerHTML = '<div class="ev-notice" style="display:block; font-size:13px">' +
+'<div><b>' + (res.put.length ? '✔ 서명 ' + res.put.length + '명을 넣어 내려받았습니다.' : '넣을 수 있는 서명이 없어 파일을 만들지 않았습니다.') + '</b>' +
+' <span class="muted">(' + res.sheets.map(esc).join(' · ') + ')</span></div>' +
+list('미서명', res.none) + list('재확인 필요(서명 뒤 점수 변경)', res.stale) +
+list('이름이 명단과 다름', res.mismatch) + list('명단에서 찾지 못함', res.unknown) +
+'<div class="hint" style="margin-top:6px">서명은 비고 칸 위에 그림으로 들어갑니다. 인쇄 · 제출용이며, 이 파일을 나이스에 다시 올려도 서명은 반영되지 않습니다.' +
+(/\.xls$/i.test(file.name) ? ' .xls 파일은 .xlsx 로 바꾸면서 글꼴 · 테두리 서식이 일부 빠질 수 있습니다.' : '') + '</div></div>';
+} catch (e) {
+box.innerHTML = '';
+toast(e.message, 'err');
+}
 }
 
 /* 학생용 성적 확인표 : 조회 화면을 못 쓸 때 나눠주는 종이 확인표
