@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>AI 사례 보고서 이어쓰기</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+--card:#ffffff; --fg:#0f172a; --muted:#64748b;
+--border:#e2e8f0; --border-strong:#cbd5e1;
+--primary:#4f46e5; --danger:#e11d48; --ok:#059669; --warn:#b45309;
+--shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.06);
+--radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+color:var(--fg);
+background:
+radial-gradient(1200px 500px at -10% -10%, #dbeafe 0%, transparent 60%),
+radial-gradient(1000px 500px at 110% 0%, #ede9fe 0%, transparent 55%),
+#f8fafc;
+min-height:100vh; padding:16px 16px 90px;
+}
+.wrap{max-width:760px; margin:0 auto}
+.hero{
+background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+color:#fff; border-radius:18px; padding:20px 22px; box-shadow:var(--shadow);
+display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;
+}
+.hero h1{margin:0; font-size:22px; letter-spacing:-.3px}
+.hero .sub{opacity:.9; font-size:13px; margin-top:2px}
+.hero button{
+background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.25);
+padding:7px 13px; border-radius:999px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit;
+}
+.card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); margin-bottom:14px}
+.card h2{margin:0 0 10px; font-size:17px; display:flex; align-items:center; gap:8px}
+.card h2 .n{display:inline-grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--primary); color:#fff; font-size:14px}
+.row{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px}
+label.field{display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); font-weight:600; margin-bottom:12px}
+label.field .hint{font-weight:400; font-size:12px}
+input, textarea{
+border:1px solid var(--border); background:#fff; border-radius:10px;
+padding:9px 10px; font-size:15px; color:var(--fg); outline:none; font-family:inherit; width:100%; line-height:1.55;
+}
+textarea{resize:vertical; min-height:90px}
+input:focus, textarea:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+input[readonly], textarea[readonly]{background:#f8fafc; color:#334155}
+.empty-field{border-color:#fca5a5; background:#fff7f7}
+.cnt{font-size:11px; color:var(--muted); text-align:right; font-weight:400}
+.btn{
+border:none; cursor:pointer; padding:11px 16px; border-radius:10px; font-weight:700; font-size:15px;
+background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; box-shadow:0 4px 10px rgba(79,70,229,.22);
+font-family:inherit; width:100%; margin-top:12px;
+}
+.btn.ghost{background:#fff; color:var(--primary); border:1px solid var(--border-strong); box-shadow:none}
+.btn:disabled{opacity:.6; cursor:default}
+.err{color:var(--danger); font-size:14px; min-height:18px; margin-top:8px}
+.muted{color:var(--muted)}
+.notice{background:#eef2ff; border:1px solid #c7d2fe; color:#3730a3; border-radius:10px; padding:10px 12px; font-size:14px; margin-bottom:14px; white-space:pre-wrap}
+.notice.warn{background:#fff7ed; border-color:#fed7aa; color:var(--warn)}
+.notice.ok{background:#ecfdf5; border-color:#a7f3d0; color:#065f46}
+.progress{height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-top:8px}
+.progress i{display:block; height:100%; background:linear-gradient(90deg,#4f46e5,#db2777); width:0; transition:width .3s}
+.pledge-line{font-size:15px; color:var(--fg); font-weight:600; margin:2px 0 6px}
+.bar{
+position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.96); border-top:1px solid var(--border);
+padding:10px 16px; backdrop-filter:blur(6px);
+}
+.bar .in{max-width:760px; margin:0 auto; display:flex; gap:8px; align-items:center}
+.bar .st{flex:1; font-size:13px; color:var(--muted); min-width:0}
+.bar .btn{width:auto; margin:0; padding:10px 14px; font-size:14px}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hero">
+<div>
+<h1>AI 사례 보고서 이어쓰기</h1>
+<div class="sub" id="who">학번과 이름으로 들어와서 네이버폼에 쓰던 보고서를 이어서 작성하세요.</div>
+</div>
+<button type="button" id="outBtn" class="hidden" onclick="logout()">나가기</button>
+</div>
+
+<!-- 로그인 -->
+<form class="card" id="loginCard" onsubmit="login(event)">
+<h2>들어가기</h2>
+<div class="row">
+<label class="field">학번
+<input id="hakbun" inputmode="numeric" autocomplete="off" placeholder="예: 2111" required>
+</label>
+<label class="field">이름
+<input id="name" autocomplete="off" placeholder="예: 홍길동" required>
+</label>
+</div>
+<button class="btn" id="goBtn">불러오기</button>
+<div class="err" id="err"></div>
+<div class="muted" style="font-size:13px">네이버폼에 제출할 때 쓴 학번과 이름을 그대로 입력하세요.</div>
+</form>
+
+<!-- 보고서 -->
+<div id="report" class="hidden">
+<div class="notice hidden" id="teacherNote"></div>
+<div class="notice hidden" id="stateNote"></div>
+<div class="card">
+<div style="display:flex; justify-content:space-between; font-size:14px"><b>작성 진행</b><span id="progTxt" class="muted"></span></div>
+<div class="progress"><i id="progBar"></i></div>
+</div>
+<div id="cases"></div>
+<div class="card">
+<h2><span class="n">✎</span>AI를 사용할 때 나의 다짐</h2>
+<div class="pledge-line">"나는 AI를 사용할 때, ______ 하겠습니다."</div>
+<label class="field">
+<textarea id="pledge" rows="3" placeholder="나는 AI를 사용할 때, ... 하겠습니다."></textarea>
+<span class="cnt" data-for="pledge"></span>
+</label>
+</div>
+</div>
+</div>
+
+<div class="bar hidden" id="bar">
+<div class="in">
+<div class="st" id="saveSt"></div>
+<button type="button" class="btn ghost" id="saveBtn" onclick="save(false)">임시 저장</button>
+<button type="button" class="btn" id="submitBtn" onclick="finalSubmit()">최종 제출</button>
+</div>
+</div>
+
+<script>
+/* 공개용(publishable) 키 - 학생은 student_ai_report_load/save 함수로 본인 보고서만 다룹니다. */
+const SUPABASE_URL = 'https://pfasdccrftfedsvwwalb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XuCCXqn_RAYYbEG9Ua33XA_-opIYotq';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+
+const FIELDS = [
+  { key: 'title',   label: '사례의 제목', rows: 1, ph: '기사 제목이나 사례를 한 줄로' },
+  { key: 'what',    label: '무슨 일이 있었나요?', rows: 5, ph: '언제, 어디서, 누가, 무엇을, 어떻게 했는지 정리하세요.' },
+  { key: 'opinion', label: '나의 의견', rows: 5, ph: '이 사례에서 인공지능은 ~라고 생각한다. 왜냐하면 ~' },
+  { key: 'source',  label: '출처', rows: 1, ph: '예: 연합뉴스, 2026.11.24' }
+];
+let me = null;        // { hakbun, name }
+let locked = false;   // 제출 완료 또는 마감
+let dirty = false;
+let timer = null;
+let saving = false;
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  });
+}
+function $(id){ return document.getElementById(id); }
+function hm(iso){
+  return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
+function backupKey(){ return 'aiReport:' + me.hakbun + ':' + me.name; }
+
+async function login(ev){
+  ev.preventDefault();
+  $('err').textContent = '';
+  $('goBtn').disabled = true;
+  const h = $('hakbun').value.replace(/\s/g, '');
+  const n = $('name').value.replace(/\s/g, '');
+  const res = await sb.rpc('student_ai_report_load', { p_hakbun: h, p_name: n });
+  $('goBtn').disabled = false;
+  if (res.error){ $('err').textContent = '불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.'; return; }
+  if (res.data.error){ $('err').textContent = res.data.error; return; }
+  me = { hakbun: res.data.hakbun, name: res.data.name };
+  render(res.data);
+}
+
+function caseHtml(c, i){
+  return '<div class="card"><h2><span class="n">' + (i + 1) + '</span>인공지능 사례 ' + (i + 1) + '</h2>' +
+    FIELDS.map(function(f){
+      const id = 'c' + i + '_' + f.key;
+      const v = esc(c[f.key] || '');
+      const input = f.rows === 1
+        ? '<input id="' + id + '" value="' + v + '" placeholder="' + esc(f.ph) + '">'
+        : '<textarea id="' + id + '" rows="' + f.rows + '" placeholder="' + esc(f.ph) + '">' + v + '</textarea>';
+      return '<label class="field">' + f.label + input + '<span class="cnt" data-for="' + id + '"></span></label>';
+    }).join('') + '</div>';
+}
+
+function render(d){
+  $('loginCard').classList.add('hidden');
+  $('report').classList.remove('hidden');
+  $('bar').classList.remove('hidden');
+  $('outBtn').classList.remove('hidden');
+  $('who').textContent = d.hakbun + ' ' + d.name;
+
+  const cases = [0, 1, 2].map(function(i){ return (d.cases && d.cases[i]) || {}; });
+  let pledge = d.pledge || '';
+
+  // 브라우저에 남은 저장 안 된 글이 있으면 되살릴지 묻기
+  if (!d.submitted_at && d.open){
+    try {
+      const b = JSON.parse(localStorage.getItem(backupKey()) || 'null');
+      if (b && (!d.edited_at || b.at > Date.parse(d.edited_at)) &&
+          JSON.stringify([b.cases, b.pledge]) !== JSON.stringify([cases, pledge]) &&
+          confirm('이 기기에 저장하지 못한 글이 남아 있습니다. 불러올까요?')){
+        b.cases.forEach(function(c, i){ cases[i] = c; });
+        pledge = b.pledge;
+        dirty = true;
+      }
+    } catch (e) {}
+  }
+
+  $('cases').innerHTML = cases.map(caseHtml).join('');
+  $('pledge').value = pledge;
+  if (d.note){ $('teacherNote').textContent = d.note; $('teacherNote').classList.remove('hidden'); }
+  else $('teacherNote').classList.add('hidden');
+
+  locked = !!d.submitted_at || !d.open;
+  const st = $('stateNote');
+  st.classList.remove('hidden', 'warn', 'ok');
+  if (d.submitted_at){
+    st.classList.add('ok');
+    st.textContent = '✔ ' + hm(d.submitted_at) + ' 최종 제출 완료. 고칠 것이 있으면 선생님께 말씀하세요.';
+  } else if (!d.open){
+    st.classList.add('warn');
+    st.textContent = '보고서 작성이 마감되었습니다. 지금은 볼 수만 있습니다.';
+  } else if (d.imported && !d.edited_at){
+    st.textContent = '네이버폼에 제출한 내용을 불러왔습니다. 빈칸을 채우고 부족한 부분을 이어서 쓴 뒤 [최종 제출]을 누르세요.';
+  } else if (!d.imported && !d.edited_at){
+    st.textContent = '네이버폼 제출 기록이 없어 빈 보고서로 시작합니다. 사례 3가지와 나의 다짐을 작성하세요.';
+  } else {
+    st.textContent = '마지막 저장: ' + hm(d.edited_at) + ' · 이어서 작성하고 다 쓰면 [최종 제출]을 누르세요.';
+  }
+
+  document.querySelectorAll('#report input, #report textarea').forEach(function(el){
+    el.readOnly = locked;
+    el.addEventListener('input', onInput);
+  });
+  $('saveBtn').classList.toggle('hidden', locked);
+  $('submitBtn').classList.toggle('hidden', locked);
+  $('saveSt').textContent = locked ? '' : (dirty ? '저장되지 않은 내용이 있습니다.' : '자동 저장됩니다.');
+  updateCounts();
+}
+
+function collect(){
+  return {
+    cases: [0, 1, 2].map(function(i){
+      const c = {};
+      FIELDS.forEach(function(f){ c[f.key] = $('c' + i + '_' + f.key).value; });
+      return c;
+    }),
+    pledge: $('pledge').value
+  };
+}
+
+function updateCounts(){
+  let filled = 0, total = 0;
+  document.querySelectorAll('.cnt').forEach(function(s){
+    const el = $(s.dataset.for);
+    const v = el.value.trim();
+    s.textContent = v.length + '자';
+    total++;
+    if (v) filled++;
+    el.classList.toggle('empty-field', !v && !locked);
+  });
+  $('progTxt').textContent = filled + ' / ' + total + '칸';
+  $('progBar').style.width = Math.round(filled / total * 100) + '%';
+  return filled === total;
+}
+
+function onInput(){
+  if (locked) return;
+  dirty = true;
+  updateCounts();
+  const d = collect();
+  try { localStorage.setItem(backupKey(), JSON.stringify({ at: Date.now(), cases: d.cases, pledge: d.pledge })); } catch (e) {}
+  $('saveSt').textContent = '작성 중…';
+  clearTimeout(timer);
+  timer = setTimeout(function(){ save(false, true); }, 3000);
+}
+
+async function save(submit, auto){
+  if (locked || saving) return false;
+  clearTimeout(timer);
+  saving = true;
+  $('saveBtn').disabled = $('submitBtn').disabled = true;
+  if (!auto) $('saveSt').textContent = '저장 중…';
+  const d = collect();
+  let res;
+  try {
+    res = await sb.rpc('student_ai_report_save', {
+      p_hakbun: me.hakbun, p_name: me.name, p_cases: d.cases, p_pledge: d.pledge, p_submit: !!submit
+    });
+  } catch (e) { res = { error: e }; }
+  saving = false;
+  $('saveBtn').disabled = $('submitBtn').disabled = false;
+  if (res.error){
+    $('saveSt').textContent = '⚠ 저장하지 못했습니다. 인터넷 연결을 확인하세요. (이 기기에는 보관 중)';
+    return false;
+  }
+  if (res.data.error){
+    $('saveSt').textContent = '⚠ ' + res.data.error;
+    if (!auto) alert(res.data.error);
+    return false;
+  }
+  dirty = false;
+  try { localStorage.removeItem(backupKey()); } catch (e) {}
+  if (submit){ render(res.data); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  else $('saveSt').textContent = '✔ ' + hm(res.data.edited_at) + ' 저장됨';
+  return true;
+}
+
+async function finalSubmit(){
+  if (!updateCounts()){
+    alert('빈칸이 있습니다. 빨간 칸을 모두 채워야 최종 제출할 수 있습니다.');
+    const first = document.querySelector('.empty-field');
+    if (first){ first.scrollIntoView({ behavior: 'smooth', block: 'center' }); first.focus(); }
+    return;
+  }
+  if (!confirm('최종 제출하면 더 이상 고칠 수 없습니다. 제출할까요?')) return;
+  if (await save(true)) alert('최종 제출되었습니다.');
+}
+
+async function logout(){
+  if (dirty && !locked && !(await save(false))){
+    if (!confirm('저장하지 못한 내용이 있습니다. 그래도 나갈까요?')) return;
+  }
+  dirty = false;
+  location.reload();
+}
+
+window.addEventListener('beforeunload', function(e){
+  if (dirty && !locked){ e.preventDefault(); e.returnValue = ''; }
+});
+</script>
+</body>
+</html>
