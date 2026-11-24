@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>AI 사례 보고서 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+--card:#ffffff; --fg:#0f172a; --muted:#64748b;
+--border:#e2e8f0; --border-strong:#cbd5e1;
+--primary:#4f46e5; --danger:#e11d48; --ok:#059669; --warn:#b45309;
+--shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; color:var(--fg); background:#f8fafc; padding:16px}
+.wrap{max-width:1100px; margin:0 auto}
+.hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#db2777 100%); color:#fff; border-radius:18px; padding:18px 22px;
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px}
+.hero h1{margin:0; font-size:21px}
+.hero .sub{opacity:.9; font-size:13px; margin-top:2px}
+.hero button{background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.25); padding:7px 13px; border-radius:999px; font-weight:600; cursor:pointer; font-family:inherit}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow); margin-bottom:14px}
+.card h2{margin:0 0 10px; font-size:16px}
+input, textarea, select{border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:14px; font-family:inherit; width:100%; color:var(--fg); background:#fff}
+.btn{border:none; cursor:pointer; padding:8px 14px; border-radius:10px; font-weight:600; font-size:14px; background:var(--primary); color:#fff; font-family:inherit; white-space:nowrap}
+.btn.ghost{background:#fff; color:var(--primary); border:1px solid var(--border-strong)}
+.btn.danger{background:#fff; color:var(--danger); border:1px solid #fecdd3}
+.btn.sm{padding:4px 9px; font-size:12px}
+.btn:disabled{opacity:.55; cursor:default}
+.flex{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.muted{color:var(--muted)}
+.err{color:var(--danger); font-size:13px; min-height:18px; margin-top:6px}
+.stats{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+.stat{flex:1; min-width:110px; border:1px solid var(--border); border-radius:12px; padding:10px 12px}
+.stat b{display:block; font-size:24px}
+.stat span{font-size:12px; color:var(--muted)}
+table{width:100%; border-collapse:collapse; font-size:14px}
+th, td{border-bottom:1px solid var(--border); padding:8px 6px; text-align:left; vertical-align:middle}
+th{font-size:12px; color:var(--muted); font-weight:600; cursor:pointer; user-select:none}
+.tag{display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; font-weight:700}
+.t-done{background:#d1fae5; color:#065f46}
+.t-edit{background:#e0e7ff; color:#3730a3}
+.t-naver{background:#fef3c7; color:#92400e}
+.t-none{background:#f1f5f9; color:#475569}
+.switch{display:flex; align-items:center; gap:8px; font-weight:700}
+.switch input{width:auto; transform:scale(1.3)}
+.modal-back{position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; z-index:10}
+.modal{background:#fff; border-radius:16px; max-width:820px; width:100%; padding:20px}
+.case{border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px}
+.case h3{margin:0 0 8px; font-size:15px}
+.kv{margin-bottom:8px}
+.kv .k{font-size:12px; color:var(--muted); font-weight:700}
+.kv .v{white-space:pre-wrap; font-size:14px; line-height:1.6}
+.kv .v.empty{color:#e11d48}
+.kv .old{white-space:pre-wrap; font-size:12px; color:var(--muted); border-left:3px solid #fde68a; padding-left:8px; margin-top:4px}
+.hidden{display:none !important}
+.scroll{overflow-x:auto}
+@media print{
+  body{background:#fff; padding:0}
+  .hero, .card, .modal-back .noprint{display:none !important}
+  .modal-back{position:static; background:none; padding:0}
+  .modal{max-width:none; padding:0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hero">
+<div><h1>AI 사례 보고서 관리</h1><div class="sub">네이버폼 응답 엑셀 올리기 · 이어쓰기 현황 · 엑셀 내려받기</div></div>
+<button id="logoutBtn" class="hidden" onclick="logout()">로그아웃</button>
+</div>
+
+<form class="card" id="loginCard" onsubmit="doLogin(event)" style="max-width:420px">
+<h2>선생님 로그인</h2>
+<div style="display:grid; gap:8px">
+<input id="email" type="email" placeholder="이메일" autocomplete="username" required>
+<input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password" required>
+<button class="btn" id="loginBtn">로그인</button>
+</div>
+<div class="err" id="loginErr"></div>
+</form>
+
+<div id="app" class="hidden">
+<div class="card">
+<h2>학생 작성 받기</h2>
+<div class="flex" style="justify-content:space-between">
+<label class="switch"><input type="checkbox" id="open" onchange="saveSettings()"> <span id="openTxt"></span></label>
+<span class="muted" style="font-size:13px">학생 주소: <a id="stuLink" target="_blank"></a></span>
+</div>
+<div style="margin-top:10px">
+<textarea id="note" rows="2" placeholder="학생 화면 맨 위에 보일 안내 문구 (비워 두면 안 보임)"></textarea>
+<div class="flex" style="margin-top:6px"><button class="btn ghost sm" onclick="saveSettings()">안내 문구 저장</button><span class="muted" id="setSt" style="font-size:12px"></span></div>
+</div>
+</div>
+
+<div class="card">
+<h2>네이버폼 응답 엑셀 올리기</h2>
+<div class="muted" style="font-size:13px; margin-bottom:8px">
+네이버폼 [결과 → 엑셀 다운로드] 파일을 올리면 학생별 초안이 만들어집니다. 같은 학생이 여러 번 응답했으면 가장 늦은 응답을 씁니다.<br>
+이미 학생이 이어 쓰기를 시작한 보고서는 덮어쓰지 않습니다. "." "ㄴ" 처럼 빈칸 대신 넣은 글자는 빈칸으로 바꿉니다.
+</div>
+<div class="flex">
+<input type="file" id="file" accept=".xlsx,.xls,.csv" style="max-width:360px" onchange="readFile(this)">
+<button class="btn" id="importBtn" disabled onclick="doImport()">가져오기</button>
+</div>
+<div id="preview" class="muted" style="font-size:13px; margin-top:8px"></div>
+<div class="err" id="importErr"></div>
+</div>
+
+<div class="card">
+<div class="flex" style="justify-content:space-between; margin-bottom:10px">
+<h2 style="margin:0">제출 현황</h2>
+<div class="flex">
+<input id="q" placeholder="학번 · 이름 찾기" style="width:160px" oninput="drawTable()">
+<button class="btn ghost" onclick="loadList()">새로 고침</button>
+<button class="btn" onclick="downloadXlsx()">엑셀 내려받기</button>
+</div>
+</div>
+<div class="stats" id="stats"></div>
+<div class="scroll"><table>
+<thead><tr>
+<th onclick="sortBy('hakbun')">학번</th><th onclick="sortBy('name')">이름</th><th onclick="sortBy('state')">상태</th>
+<th onclick="sortBy('filled')">채운 칸</th><th onclick="sortBy('len')">글자 수</th><th onclick="sortBy('edited_at')">마지막 저장</th><th></th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table></div>
+</div>
+</div>
+</div>
+
+<div class="modal-back hidden" id="modalBack" onclick="if(event.target===this)closeModal()">
+<div class="modal" id="modal"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://pfasdccrftfedsvwwalb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XuCCXqn_RAYYbEG9Ua33XA_-opIYotq';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const KEYS = ['title', 'what', 'opinion', 'source'];
+const LABELS = { title: '사례의 제목', what: '무슨 일이 있었나요?', opinion: '나의 의견', source: '출처' };
+const STATES = {
+  done:  { t: '제출 완료', c: 't-done', o: 3 },
+  edit:  { t: '이어 쓰는 중', c: 't-edit', o: 2 },
+  naver: { t: '네이버폼만', c: 't-naver', o: 1 },
+  none:  { t: '시작 안 함', c: 't-none', o: 0 }
+};
+let rows = [];
+let parsed = null;
+let sortKey = 'hakbun', sortDir = 1;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  });
+}
+function dt(iso){
+  if (!iso) return '';
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
+
+/* ---------- 로그인 ---------- */
+async function afterLogin(){
+  const r = await sb.rpc('is_allowed_user');
+  if (r.error || !r.data){
+    await sb.auth.signOut();
+    $('loginErr').textContent = '이 계정은 접근 권한이 없습니다.';
+    return;
+  }
+  $('loginCard').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('logoutBtn').classList.remove('hidden');
+  const link = new URL('report.html', location.href).href;
+  $('stuLink').href = link; $('stuLink').textContent = link;
+  loadSettings();
+  loadList();
+}
+async function doLogin(ev){
+  ev.preventDefault();
+  $('loginBtn').disabled = true; $('loginErr').textContent = '';
+  const res = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+  $('loginBtn').disabled = false;
+  if (res.error){ $('loginErr').textContent = '이메일 또는 비밀번호가 올바르지 않습니다.'; return; }
+  afterLogin();
+}
+async function logout(){ await sb.auth.signOut(); location.reload(); }
+document.addEventListener('DOMContentLoaded', async function(){
+  const res = await sb.auth.getSession();
+  if (res.data && res.data.session) afterLogin();
+});
+
+/* ---------- 설정 ---------- */
+async function loadSettings(){
+  const r = await sb.from('ai_report_settings').select('*').eq('id', 1).maybeSingle();
+  if (r.error){ $('setSt').textContent = '설정을 불러오지 못했습니다. (DB 마이그레이션 적용 여부 확인)'; return; }
+  const s = r.data || { open: true, note: '' };
+  $('open').checked = s.open;
+  $('note').value = s.note || '';
+  $('openTxt').textContent = s.open ? '작성 받는 중 (학생이 저장 · 제출 가능)' : '마감됨 (학생은 보기만 가능)';
+}
+async function saveSettings(){
+  const r = await sb.from('ai_report_settings').upsert({ id: 1, open: $('open').checked, note: $('note').value.trim() });
+  $('setSt').textContent = r.error ? '저장 실패: ' + r.error.message : '저장됨';
+  loadSettings();
+}
+
+/* ---------- 네이버폼 엑셀 읽기 ---------- */
+// "." "ㄴ" "-" 처럼 빈칸 대신 넣은 글자 → 빈칸
+function clean(v){
+  const s = String(v == null ? '' : v).trim();
+  return /^[\s.,·~!?\-_ㄱ-ㅎㅏ-ㅣ0]*$/.test(s) && s.length <= 3 ? '' : s;
+}
+function readFile(input){
+  parsed = null; $('importBtn').disabled = true; $('preview').innerHTML = ''; $('importErr').textContent = '';
+  const f = input.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = function(){
+    try {
+      const wb = XLSX.read(new Uint8Array(fr.result), { type: 'array', cellDates: false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      parsed = parseNaver(aoa);
+      showPreview(parsed);
+    } catch (e) {
+      $('importErr').textContent = '파일을 읽지 못했습니다: ' + e.message;
+    }
+  };
+  fr.readAsArrayBuffer(f);
+}
+function parseNaver(aoa){
+  // 머리글 줄 찾기 : "학번" 이 들어간 칸이 있는 첫 줄
+  let hr = aoa.findIndex(function(r){ return r.some(function(c){ return /학번/.test(String(c)); }); });
+  if (hr < 0) throw new Error('"학번과 이름" 머리글을 찾지 못했습니다.');
+  const head = aoa[hr].map(function(c){ return String(c).replace(/\(\*\)/g, '').trim(); });
+  const idCol = head.findIndex(function(c){ return /학번/.test(c); });
+  const timeCol = head.findIndex(function(c){ return /응답일시|제출일시|일시/.test(c); });
+  // 사례 칸 : "사례의 제목" 이 나오는 곳부터 4칸씩
+  const titleCols = [];
+  head.forEach(function(c, i){ if (/사례의\s*제목|제목/.test(c)) titleCols.push(i); });
+  if (titleCols.length < 1) throw new Error('"사례의 제목" 머리글을 찾지 못했습니다.');
+  let pledgeCol = head.findIndex(function(c){ return /다짐|AI를\s*사용할\s*때/i.test(c); });
+  if (pledgeCol < 0) pledgeCol = titleCols[titleCols.length - 1] + 4;
+
+  const byStu = {};
+  const bad = [];
+  aoa.slice(hr + 1).forEach(function(r, i){
+    const raw = String(r[idCol] || '').trim();
+    if (!raw) return;
+    const m = raw.replace(/\s+/g, ' ').match(/^(\d{4,6})\s*[-_.,/]?\s*([^\d]+)$/) || raw.match(/^([^\d]+?)\s*(\d{4,6})$/);
+    if (!m){ bad.push(raw); return; }
+    const hakbun = /^\d/.test(m[1]) ? m[1] : m[2];
+    const name = (/^\d/.test(m[1]) ? m[2] : m[1]).replace(/\s+/g, '');
+    const cases = [0, 1, 2].map(function(k){
+      const c0 = titleCols[k];
+      const c = {};
+      KEYS.forEach(function(key, j){ c[key] = c0 == null ? '' : clean(r[c0 + j]); });
+      return c;
+    });
+    // 다짐 칸에 문장 앞부분("나는 AI를 사용할 때,")만 있으면 빈칸
+    const pledge = clean(r[pledgeCol]).replace(/^나는\s*AI를\s*사용할\s*때\s*,?\s*(하겠습니다\.?)?$/i, '');
+    const naver = { time: timeCol >= 0 ? String(r[timeCol]) : '', cases: cases, pledge: pledge };
+    const rec = { hakbun: hakbun, name: name, cases: cases, pledge: naver.pledge, naver: naver, _order: i };
+    const key = hakbun + name;
+    const prev = byStu[key];
+    if (!prev || String(naver.time) + String(i).padStart(5, '0') >= String(prev.naver.time) + String(prev._order).padStart(5, '0')) byStu[key] = rec;
+  });
+  const list = Object.values(byStu).sort(function(a, b){ return a.hakbun.localeCompare(b.hakbun); });
+  list.forEach(function(x){ delete x._order; });
+  return { list: list, bad: bad };
+}
+function filledCount(cases, pledge){
+  let n = 0;
+  (cases || []).forEach(function(c){ KEYS.forEach(function(k){ if (String(c[k] || '').trim()) n++; }); });
+  if (String(pledge || '').trim()) n++;
+  return n;
+}
+function showPreview(p){
+  const full = p.list.filter(function(x){ return filledCount(x.cases, x.pledge) === 13; }).length;
+  $('preview').innerHTML = '<b>' + p.list.length + '명</b> 읽음 · 모든 칸 작성 ' + full + '명 · 빈칸 있음 ' + (p.list.length - full) + '명' +
+    (p.bad.length ? '<br><span style="color:#e11d48">학번/이름을 알아볼 수 없어 뺀 응답: ' + p.bad.map(esc).join(', ') + '</span>' : '') +
+    '<br>' + p.list.map(function(x){ return esc(x.hakbun + ' ' + x.name) + ' (' + filledCount(x.cases, x.pledge) + '/13)'; }).join(' · ');
+  $('importBtn').disabled = !p.list.length;
+}
+async function doImport(){
+  if (!parsed) return;
+  $('importBtn').disabled = true;
+  const r = await sb.rpc('ai_report_import', { p_rows: parsed.list });
+  if (r.error){ $('importErr').textContent = '가져오기 실패: ' + r.error.message; $('importBtn').disabled = false; return; }
+  $('preview').innerHTML = '✔ 새로 추가 ' + r.data.added + '명 · 갱신 ' + r.data.updated + '명' +
+    (r.data.kept ? ' · 학생이 이미 이어 쓰고 있어 그대로 둔 보고서 ' + r.data.kept + '명' : '');
+  $('file').value = ''; parsed = null;
+  loadList();
+}
+
+/* ---------- 현황 ---------- */
+function stateOf(r){
+  if (r.submitted_at) return 'done';
+  if (r.edited_at) return 'edit';
+  if (r.imported_at) return 'naver';
+  return 'none';
+}
+async function loadList(){
+  const r = await sb.from('ai_reports').select('*').order('hakbun');
+  if (r.error){ $('tbody').innerHTML = '<tr><td colspan="7" class="err">목록을 불러오지 못했습니다: ' + esc(r.error.message) + '</td></tr>'; return; }
+  rows = r.data.map(function(x){
+    x.state = stateOf(x);
+    x.filled = filledCount(x.cases, x.pledge);
+    x.len = (x.cases || []).reduce(function(s, c){ return s + KEYS.reduce(function(t, k){ return t + String(c[k] || '').length; }, 0); }, 0) + (x.pledge || '').length;
+    return x;
+  });
+  drawTable();
+}
+function sortBy(k){ if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = 1; } drawTable(); }
+function drawTable(){
+  const cnt = { done: 0, edit: 0, naver: 0, none: 0 };
+  rows.forEach(function(r){ cnt[r.state]++; });
+  $('stats').innerHTML = '<div class="stat"><b>' + rows.length + '</b><span>전체</span></div>' +
+    Object.keys(STATES).map(function(k){ return '<div class="stat"><b>' + cnt[k] + '</b><span>' + STATES[k].t + '</span></div>'; }).join('');
+  const q = $('q').value.replace(/\s/g, '');
+  const list = rows.filter(function(r){ return !q || (r.hakbun + r.name).indexOf(q) >= 0; }).slice().sort(function(a, b){
+    let x = a[sortKey], y = b[sortKey];
+    if (sortKey === 'state'){ x = STATES[x].o; y = STATES[y].o; }
+    if (x == null) x = ''; if (y == null) y = '';
+    return (x > y ? 1 : x < y ? -1 : 0) * sortDir;
+  });
+  $('tbody').innerHTML = list.map(function(r){
+    const s = STATES[r.state];
+    return '<tr><td>' + esc(r.hakbun) + '</td><td>' + esc(r.name) + '</td>' +
+      '<td><span class="tag ' + s.c + '">' + s.t + '</span></td>' +
+      '<td>' + r.filled + ' / 13</td><td>' + r.len + '</td><td>' + esc(dt(r.submitted_at || r.edited_at)) + '</td>' +
+      '<td class="flex" style="justify-content:flex-end">' +
+      '<button class="btn ghost sm" onclick="view(' + r.id + ')">보기</button>' +
+      (r.submitted_at ? '<button class="btn ghost sm" onclick="unsubmit(' + r.id + ')">제출 취소</button>' : '') +
+      '<button class="btn danger sm" onclick="del(' + r.id + ')">삭제</button></td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center; padding:24px">아직 자료가 없습니다. 네이버폼 응답 엑셀을 올려 주세요.</td></tr>';
+}
+function byId(id){ return rows.find(function(r){ return r.id === id; }); }
+async function unsubmit(id){
+  const r = byId(id);
+  if (!confirm(r.hakbun + ' ' + r.name + ' 학생의 최종 제출을 취소할까요? 학생이 다시 고쳐 쓸 수 있게 됩니다.')) return;
+  const res = await sb.from('ai_reports').update({ submitted_at: null }).eq('id', id);
+  if (res.error) alert(res.error.message);
+  loadList();
+}
+async function del(id){
+  const r = byId(id);
+  if (!confirm(r.hakbun + ' ' + r.name + ' 학생의 보고서를 삭제할까요? 되돌릴 수 없습니다.')) return;
+  const res = await sb.from('ai_reports').delete().eq('id', id);
+  if (res.error) alert(res.error.message);
+  closeModal();
+  loadList();
+}
+
+/* ---------- 보고서 보기 (네이버폼 원래 내용과 비교) ---------- */
+function view(id){
+  const r = byId(id);
+  const nv = r.naver || null;
+  const s = STATES[r.state];
+  function kv(label, v, old){
+    const changed = nv && old != null && String(old).trim() !== String(v || '').trim();
+    return '<div class="kv"><div class="k">' + label + '</div>' +
+      '<div class="v' + (String(v || '').trim() ? '' : ' empty') + '">' + (String(v || '').trim() ? esc(v) : '(빈칸)') + '</div>' +
+      (changed ? '<div class="old noprint">네이버폼: ' + (String(old).trim() ? esc(old) : '(빈칸)') + '</div>' : '') + '</div>';
+  }
+  $('modal').innerHTML =
+    '<div class="flex noprint" style="justify-content:space-between; margin-bottom:12px">' +
+    '<span class="tag ' + s.c + '">' + s.t + '</span>' +
+    '<div class="flex"><button class="btn ghost sm" onclick="window.print()">인쇄</button><button class="btn sm" onclick="closeModal()">닫기</button></div></div>' +
+    '<h2 style="margin:0 0 4px">' + esc(r.hakbun + ' ' + r.name) + '</h2>' +
+    '<div class="muted" style="font-size:13px; margin-bottom:12px">' +
+    (r.submitted_at ? '최종 제출 ' + esc(dt(r.submitted_at)) : r.edited_at ? '마지막 저장 ' + esc(dt(r.edited_at)) : '') +
+    (nv && nv.time ? ' · 네이버폼 응답 ' + esc(nv.time) : '') + '</div>' +
+    [0, 1, 2].map(function(i){
+      const c = (r.cases || [])[i] || {};
+      const o = nv && nv.cases ? nv.cases[i] || {} : {};
+      return '<div class="case"><h3>인공지능 사례 ' + (i + 1) + '</h3>' +
+        KEYS.map(function(k){ return kv(LABELS[k], c[k], nv ? (o[k] || '') : null); }).join('') + '</div>';
+    }).join('') +
+    '<div class="case"><h3>AI를 사용할 때 나의 다짐</h3>' + kv('나는 AI를 사용할 때, ______ 하겠습니다.', r.pledge, nv ? (nv.pledge || '') : null) + '</div>' +
+    (nv ? '<div class="muted noprint" style="font-size:12px">노란 줄 = 네이버폼에 처음 냈던 내용 (바뀐 칸에만 표시)</div>' : '');
+  $('modalBack').classList.remove('hidden');
+}
+function closeModal(){ $('modalBack').classList.add('hidden'); }
+
+/* ---------- 엑셀 내려받기 (네이버폼과 같은 칸 순서) ---------- */
+function downloadXlsx(){
+  const head = ['학번', '이름', '상태', '최종 제출', '마지막 저장'];
+  [1, 2, 3].forEach(function(n){ KEYS.forEach(function(k){ head.push('사례' + n + ' ' + LABELS[k]); }); });
+  head.push('나의 다짐', '채운 칸(/13)', '글자 수');
+  const data = [head].concat(rows.slice().sort(function(a, b){ return a.hakbun.localeCompare(b.hakbun); }).map(function(r){
+    const line = [r.hakbun, r.name, STATES[r.state].t, dt(r.submitted_at), dt(r.edited_at)];
+    [0, 1, 2].forEach(function(i){ const c = (r.cases || [])[i] || {}; KEYS.forEach(function(k){ line.push(c[k] || ''); }); });
+    line.push(r.pledge || '', r.filled, r.len);
+    return line;
+  }));
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = head.map(function(h, i){ return { wch: i < 5 ? 12 : /제목|출처/.test(h) ? 28 : 50 }; });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'AI 사례 보고서');
+  const d = new Date();
+  XLSX.writeFile(wb, 'AI사례보고서_' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.xlsx');
+}
+</script>
+</body>
+</html>
