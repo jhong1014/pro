@@ -944,8 +944,8 @@ body{padding:12px}
 <div class="flex" style="align-items:flex-end">
 <label class="field" style="flex:1; min-width:160px">반<select id="sgClass" onchange="renderSignTable()"></select></label>
 <button class="btn" onclick="openSignViewer()">✍ 한 명씩 확인 · 서명</button>
-<button class="btn ghost" onclick="document.getElementById('neisFile').click()" title="나이스에서 내려받은 수행평가 통계표의 비고란에 학생 서명을 넣어 다시 내려받습니다">📥 나이스 통계표에 서명 넣기</button>
-<input type="file" id="neisFile" accept=".xlsx,.xls" style="display:none" onchange="neisSignFile(this)"/>
+<button class="btn ghost" onclick="document.getElementById('neisFile').click()" title="나이스에서 내려받은 수행평가 통계표(엑셀 · PDF)의 비고란에 학생 서명을 넣어 다시 내려받습니다">📥 나이스 통계표에 서명 넣기</button>
+<input type="file" id="neisFile" accept=".xlsx,.xls,.pdf" style="display:none" onchange="neisSignFile(this)"/>
 </div>
 <div id="neisResult"></div>
 <div id="sgBody" style="margin-top:12px"></div>
@@ -3700,12 +3700,233 @@ function neisGrade(text){
 const m = String(text || '').match(/(?:^|[^\d])(\d)\s*학년(?!도)/);
 return m ? +m[1] : null;
 }
+/* ---------- 나이스 PDF에 서명 덧입히기 ----------
+   - 한컴 PDF처럼 글자가 그림(외곽선)으로 바뀐 PDF도 쓸 수 있도록 글자를 찾지 않고 표의 선을 찾음
+     · 쪽을 그림으로 그린 뒤 가로선 · 세로선으로 표 격자를 찾음
+     · 첫 줄 = 머리글, 맨 오른쪽 칸 = 비고, 첫 칸과 둘째 칸 사이 세로선이 있는 줄 = 학생 줄
+       (응시생수 · 총점 같은 아래 요약 줄은 첫 두 칸이 합쳐져 있어 학생 줄에서 빠짐)
+   - 학생 줄의 첫 칸(반/번호, 예: 1/3)은 숫자만 읽는 OCR(tesseract.js)로 읽음
+   - 학년은 PDF에서 읽지 않고 위에서 고른 반의 학년을 씀 (전체 반이면 반 번호가 하나뿐일 때만)
+   - 원본 위에 서명 그림만 얹으므로 서식은 바뀌지 않음, 미리보기를 보고 내려받음 */
+const PDF_LIBS = {
+pdfjs: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+pdfjsWorker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+pdflib: 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+tesseract: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'
+};
+const PDF_SCALE = 4; // 쪽을 그릴 배율 (1pt = 4px)
+// 이어진 위치들을 선 하나로 묶기
+function pdfGroup(list, key){
+const out = [];
+list.forEach(function(v){
+const last = out[out.length - 1];
+if (last && v[key] - last.end <= 2){ last.end = v[key]; last.items.push(v); }
+else out.push({ start: v[key], end: v[key], items: [v] });
+});
+return out.map(function(g){ g.mid = (g.start + g.end) / 2; return g; });
+}
+// 그림에서 표 격자 찾기 → { rows: [y...], cols: [x...] } (px) 또는 null
+function pdfFindGrid(canvas){
+const w = canvas.width, h = canvas.height;
+const d = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+const dark = new Uint8Array(w * h);
+for (let i = 0; i < w * h; i++) dark[i] = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) < 450 ? 1 : 0;
+// 가로선 : 쪽 너비의 30% 넘게 이어진 검은 점
+const hs = [];
+for (let y = 0; y < h; y++){
+let run = 0, best = 0, bx = 0;
+for (let x = 0; x < w; x++){
+if (dark[y * w + x]){ run++; if (run > best){ best = run; bx = x; } } else run = 0;
+}
+if (best > w * 0.3) hs.push({ y: y, x0: bx - best + 1, x1: bx });
+}
+if (hs.length < 3) return null;
+const lines = pdfGroup(hs, 'y').map(function(g){
+return { y: g.mid, x0: Math.min.apply(null, g.items.map(function(v){ return v.x0; })), x1: Math.max.apply(null, g.items.map(function(v){ return v.x1; })) };
+});
+// 가장 위의 가로선과 왼쪽 · 오른쪽 끝이 같은 선들 = 표
+const top = lines[0];
+const rows = lines.filter(function(l){ return Math.abs(l.x0 - top.x0) < w * 0.01 && Math.abs(l.x1 - top.x1) < w * 0.01; });
+if (rows.length < 3) return null;
+// 세로선 : 머리글 줄 높이 내내 이어진 검은 세로 줄
+const y0 = Math.round(rows[0].y) + 3, y1 = Math.round(rows[1].y) - 3;
+const vs = [];
+for (let x = Math.max(0, top.x0 - 3); x <= Math.min(w - 1, top.x1 + 3); x++){
+let n = 0;
+for (let y = y0; y <= y1; y++) n += dark[y * w + x];
+if (n >= (y1 - y0 + 1) * 0.9) vs.push({ x: x });
+}
+const cols = pdfGroup(vs, 'x').map(function(g){ return g.mid; });
+if (cols.length < 3) return null;
+// 세로선 x 가 y0~y1 사이에 거의 다 이어져 있는지
+const vline = function(x, ya, yb){
+let n = 0, all = 0;
+for (let y = Math.round(ya) + 3; y <= Math.round(yb) - 3; y++){
+all++;
+for (let dx = -2; dx <= 2; dx++) if (dark[y * w + Math.round(x) + dx]){ n++; break; }
+}
+return all > 0 && n >= all * 0.85;
+};
+// 학생 줄 : 머리글 아래에서 첫 칸 · 둘째 칸 사이 세로선이 있는 줄이 이어지는 동안
+const students = [];
+for (let i = 1; i < rows.length - 1; i++){
+if (!vline(cols[1], rows[i].y, rows[i + 1].y)) break;
+students.push({ y0: rows[i].y, y1: rows[i + 1].y });
+}
+return { cols: cols, students: students };
+}
+// 첫 칸(반/번호) 글자 그림을 잘라 OCR 하기 좋게 흰 여백을 둠
+function pdfCrop(canvas, x0, y0, x1, y1){
+const pad = 20, ins = 4;
+const cw = Math.round(x1 - x0) - ins * 2, ch = Math.round(y1 - y0) - ins * 2;
+const c = document.createElement('canvas');
+c.width = cw + pad * 2; c.height = ch + pad * 2;
+const g = c.getContext('2d');
+g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+g.drawImage(canvas, Math.round(x0) + ins, Math.round(y0) + ins, cw, ch, pad, pad, cw, ch);
+return c;
+}
+// 읽지 못한 줄 : 앞뒤 줄이 같은 반이고 번호가 딱 맞게 비어 있으면 채움
+function pdfFillGaps(list){
+for (let i = 0; i < list.length; i++){
+if (list[i].ok) continue;
+let a = i - 1, b = i + 1;
+while (b < list.length && !list[b].ok) b++;
+if (a < 0 || b >= list.length || !list[a].ok) continue;
+if (list[a].k === list[b].k && list[b].n - list[a].n === b - a){
+for (let j = a + 1; j < b; j++){ list[j].k = list[a].k; list[j].n = list[a].n + (j - a); list[j].ok = true; list[j].guess = true; }
+}
+}
+}
+// 학생 한 명의 서명 고르기 (못 넣는 까닭은 res 목록에 담음)
+function neisPickSign(res, cls, number, name, label){
+let cand = (ev.signs || []).filter(function(s){ return s.number === number && (!cls || s.class_name === cls); });
+if (!cls && name) cand = cand.filter(function(s){ return neisNorm(s.name) === name; });
+if (cand.length !== 1){ res.unknown.push(label); return null; }
+const s = cand[0];
+if (name && neisNorm(s.name) !== name){ res.mismatch.push(label + ' (명단: ' + s.name + ')'); return null; }
+if (!s.signed_at){ res.none.push(label); return null; }
+if (!s.matches){ res.stale.push(label); return null; }
+return s;
+}
+let pdfOut = null; // 만든 PDF (내려받기 단추용)
+async function neisSignPdf(file, box){
+box.innerHTML = '<div class="ev-notice"><span>PDF를 읽는 중입니다… (처음에는 도구를 내려받느라 조금 걸립니다)</span></div>';
+await loadSignatures();
+await Promise.all([loadScriptOnce(PDF_LIBS.pdfjs), loadScriptOnce(PDF_LIBS.pdflib), loadScriptOnce(PDF_LIBS.tesseract)]);
+pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_LIBS.pdfjsWorker;
+const bytes = new Uint8Array(await file.arrayBuffer());
+const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+const out = await PDFLib.PDFDocument.load(bytes);
+const ocr = await Tesseract.createWorker('eng');
+await ocr.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
+const picked = document.getElementById('sgClass').value;
+const pm = String(picked || '').match(/(\d+)\D+(\d+)/);
+const grade = pm ? +pm[1] : null;
+const res = { put: [], stale: [], none: [], mismatch: [], unknown: [], sheets: [], rows: [] };
+const trimmed = {};
+try {
+for (let p = 1; p <= doc.numPages; p++){
+box.innerHTML = '<div class="ev-notice"><span>PDF ' + p + ' / ' + doc.numPages + '쪽을 살피는 중입니다…</span></div>';
+const page = await doc.getPage(p);
+const vp = page.getViewport({ scale: PDF_SCALE });
+const canvas = document.createElement('canvas');
+canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
+const g = canvas.getContext('2d');
+g.fillStyle = '#fff'; g.fillRect(0, 0, canvas.width, canvas.height);
+await page.render({ canvasContext: g, viewport: vp }).promise;
+const grid = pdfFindGrid(canvas);
+if (!grid || !grid.students.length){ res.sheets.push(p + '쪽 표 없음'); continue; }
+const cols = grid.cols;
+const list = [];
+for (const row of grid.students){
+const r = await ocr.recognize(pdfCrop(canvas, cols[0], row.y0, cols[1], row.y1));
+const t = String(r.data.text || '').replace(/\s+/g, '');
+const m = t.match(/^(\d{1,2})\/(\d{1,2})$/);
+list.push(m ? { row: row, k: +m[1], n: +m[2], ok: true, raw: t } : { row: row, ok: false, raw: t });
+}
+pdfFillGaps(list);
+const pg = out.getPage(p - 1);
+let count = 0;
+for (const x of list){
+if (!x.ok){ res.unknown.push(p + '쪽 ' + (list.indexOf(x) + 1) + '번째 줄 (반/번호를 읽지 못함)'); continue; }
+const cls = neisClassBy(grade, x.k);
+const label = (cls || x.k + '반') + ' ' + x.n + '번' + (x.guess ? '(앞뒤 줄로 추정)' : '');
+// PDF는 이름을 읽지 못하므로 반이 정해지지 않으면 넣지 않음 (다른 반 같은 번호 학생에게 잘못 넣지 않도록)
+if (!cls){ res.unknown.push(label + ' (위에서 반을 골라 주세요)'); res.rows.push(label); continue; }
+const s = neisPickSign(res, cls, x.n, '', label);
+res.rows.push(label + (s ? ' → ' + s.name : ''));
+if (!s) continue;
+if (!(s.student_id in trimmed)) trimmed[s.student_id] = await neisTrimSignature(s.signature);
+const pic = trimmed[s.student_id];
+if (!pic){ res.unknown.push(label); continue; }
+// 비고 칸(맨 오른쪽 칸) 안쪽에 비율을 지켜 가운데로
+const bx0 = cols[cols.length - 2] + 6, bx1 = cols[cols.length - 1] - 6;
+const by0 = x.row.y0 + 4, by1 = x.row.y1 - 4;
+const sc = Math.min((bx1 - bx0) / pic.w, (by1 - by0) / pic.h);
+const iw = pic.w * sc, ih = pic.h * sc;
+const left = bx0 + ((bx1 - bx0) - iw) / 2, topY = by0 + ((by1 - by0) - ih) / 2;
+const a = vp.convertToPdfPoint(left, topY + ih), b = vp.convertToPdfPoint(left + iw, topY);
+if (!pic.pdfImg) pic.pdfImg = await out.embedPng(pic.base64);
+pg.drawImage(pic.pdfImg, { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), width: Math.abs(b[0] - a[0]), height: Math.abs(b[1] - a[1]) });
+res.put.push(label);
+count++;
+}
+res.sheets.push(p + '쪽 ' + count + '명');
+}
+} finally {
+await ocr.terminate();
+}
+if (!res.rows.length && !res.unknown.length){
+box.innerHTML = '<div class="ev-notice"><span>PDF에서 성적 표를 찾지 못했습니다. 나이스에서 저장한 수행평가 일람표 · 통계표 PDF인지 확인해 주세요.</span></div>';
+return;
+}
+pdfOut = res.put.length ? { bytes: await out.save(), name: file.name.replace(/\.pdf$/i, '') + '_서명.pdf' } : null;
+const list = function(title, arr){
+return arr.length ? '<div style="margin-top:4px"><b>' + title + ' ' + arr.length + '명</b> : ' + arr.map(esc).join(', ') + '</div>' : '';
+};
+let html = '<div class="ev-notice" style="display:block; font-size:13px">' +
+'<div><b>' + (pdfOut ? '✔ 서명 ' + res.put.length + '명을 넣었습니다. 미리보기에서 이름과 서명 자리를 확인한 뒤 내려받으세요.' : '넣을 수 있는 서명이 없습니다.') + '</b>' +
+' <span class="muted">(' + res.sheets.map(esc).join(' · ') + ')</span></div>' +
+(pdfOut ? '<div style="margin-top:6px"><button class="btn sm" onclick="pdfDownload()">⬇ 서명 넣은 PDF 내려받기</button></div>' : '') +
+list('미서명', res.none) + list('재확인 필요(서명 뒤 점수 변경)', res.stale) + list('찾지 못함', res.unknown) +
+'<details style="margin-top:6px"><summary>줄마다 읽은 반/번호 (' + res.rows.length + '줄)</summary><div style="font-size:12px">' + res.rows.map(esc).join('<br>') + '</div></details>' +
+'<div class="hint" style="margin-top:6px">PDF는 글자 대신 표의 선과 반/번호 숫자를 읽어 자리를 찾습니다. 맨 오른쪽 칸을 비고로 봅니다. ' +
+(grade ? '학년은 위에서 고른 반(' + esc(picked) + ')의 학년으로 봅니다.' : '위에서 반을 고르면 그 반의 학년으로 맞춥니다.') + '</div>' +
+'<div id="pdfPreview" style="margin-top:8px"></div></div>';
+box.innerHTML = html;
+if (pdfOut){
+const pv = await pdfjsLib.getDocument({ data: pdfOut.bytes.slice() }).promise;
+const holder = document.getElementById('pdfPreview');
+for (let p = 1; p <= pv.numPages; p++){
+const page = await pv.getPage(p);
+const vp = page.getViewport({ scale: 1.3 });
+const c = document.createElement('canvas');
+c.width = vp.width; c.height = vp.height;
+c.style.cssText = 'max-width:100%; border:1px solid var(--border); background:#fff; display:block; margin-bottom:8px';
+await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+holder.appendChild(c);
+}
+}
+}
+function pdfDownload(){
+if (!pdfOut) return;
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([pdfOut.bytes], { type: 'application/pdf' }));
+a.download = pdfOut.name;
+document.body.appendChild(a); a.click(); a.remove();
+setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+}
 async function neisSignFile(input){
 const file = input.files && input.files[0];
 input.value = '';
 if (!file) return;
 const box = document.getElementById('neisResult');
 if (!ev.school){ toast('학교를 먼저 선택하세요.', 'err'); return; }
+if (/\.pdf$/i.test(file.name)){
+try { await neisSignPdf(file, box); } catch (e) { box.innerHTML = ''; toast(e.message, 'err'); }
+return;
+}
 box.innerHTML = '<div class="ev-notice"><span>엑셀 파일을 처리하는 중입니다…</span></div>';
 try {
 await loadSignatures();
