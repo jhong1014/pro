@@ -5523,8 +5523,8 @@ if (await mealSaveDays(next, ['일','월','화','수','목','금','토'][dow] + 
    - 오늘 근무학교 · 시계(현재 교시) · 미니 달력 · 주간 시간표
    - 나이스 학사일정 · 급식, 할 일, 수행평가 현황
 ========================================================= */
-const dash = { week: '', month: '', todayRes: null, slots: [], timer: null, sched: [], schedTabs: [], schedFilter: '', schedMore: false, calEvents: {}, records: [], evalTasks: [], evalMore: false };
-const DASH_SCHED_SHOW = 5, DASH_EVAL_SHOW = 3;
+const dash = { week: '', month: '', todayRes: null, slots: [], timer: null, sched: [], schedTabs: [], schedFilter: '', schedMore: false, calEvents: {}, records: [], evalSchools: [] };
+const DASH_SCHED_SHOW = 5;
 // 더보기 버튼 : 남은 개수 / 접기
 function moreBtn(open, rest, fn){
 return '<button type="button" class="more-btn" onclick="' + fn + '()">' + (open ? '접기 ▲' : '더보기 (' + rest + '개) ▼') + '</button>';
@@ -6070,53 +6070,43 @@ return sb.rpc('eval_signature_list', { p_year: settings.year, p_school: sc, p_se
 unsigned[sc] = (rows || []).filter(function(r){ return (r.current || []).length && !(r.signed_at && r.matches); }).length;
 }).catch(function(){});
 }));
-dash.evalTasks = tasks;
-dash.evalHtml = tasks.map(function(t, i){
+// 학교별로 모든 과제를 합친 진행률 = 입력한 칸 수 / (채점 요소 수 × 학생 수) 의 합
+// 예) 과제 A (5요소 · 10명 = 50칸) + 과제 B (2요소 · 10명 = 20칸) 중 42칸 입력 → 60%
+const schools = {};
+tasks.forEach(function(t){
+const sc = schools[t.school] = schools[t.school] || { school: t.school, filled: 0, total: 0, tasks: [], hidden: 0 };
 const ids = bySchool[t.school] || [], need = (t.eval_items || []).length;
-// 진행률 = 입력한 칸 수 / (채점 요소 수 × 학생 수)
-// 예) 5개 요소 · 10명 = 50칸 중 30칸 입력 → 60%
+let filled = 0;
+ids.forEach(function(id){ filled += Math.min(cnt[t.id + '|' + id] || 0, need); });
 const total = need * ids.length;
-let filled = 0, done = 0;
-ids.forEach(function(id){
-const c = Math.min(cnt[t.id + '|' + id] || 0, need);
-filled += c;
-if (need && c >= need) done++;
+sc.filled += filled; sc.total += total;
+if (!t.published) sc.hidden++;
+sc.tasks.push({ id: t.id, title: t.title, left: total - filled });
 });
-const pct = total ? Math.round(filled / total * 100) : 0;
-const tags = [];
-tags.push('입력 ' + filled + ' / ' + total + '칸');
-tags.push('다 채점한 학생 ' + done + ' / ' + ids.length + '명');
-if (!t.published) tags.push('학생 미공개');
-else if (unsigned[t.school]) tags.push('<b style="color:var(--warn)">' + esc(t.school) + ' 서명 미확인 ' + unsigned[t.school] + '명</b>');
+dash.evalSchools = Object.keys(schools).sort().map(function(k){ return schools[k]; });
+box.innerHTML = dash.evalSchools.map(function(sc, i){
+const pct = sc.total ? Math.round(sc.filled / sc.total * 100) : 0;
+const tags = ['과제 ' + sc.tasks.length + '개', '입력 ' + sc.filled + ' / ' + sc.total + '칸'];
+if (sc.hidden) tags.push('학생 미공개 ' + sc.hidden + '개');
+if (unsigned[sc.school]) tags.push('<b style="color:var(--warn)">서명 미확인 ' + unsigned[sc.school] + '명</b>');
 return '<button type="button" class="ev-prog ev-link" onclick="dashGoScore(' + i + ')" title="점수 입력 화면으로">' +
-'<div class="t"><span>' + chip(t.school) + ' ' + esc(t.title) + '<span class="go">점수 입력 ›</span></span><b>' + pct + '%</b></div>' +
+'<div class="t"><span>' + chip(sc.school) + '<span class="go">점수 입력 ›</span></span><b>' + pct + '%</b></div>' +
 '<div class="pbar"><i style="width:' + pct + '%"></i></div><div class="s">' + tags.join(' · ') + '</div></button>';
-});
-renderDashEval();
+}).join('');
 } catch (e) { box.innerHTML = dashErr(e); }
 }
-function renderDashEval(){
-const list = dash.evalHtml || [];
-let html = list.slice(0, DASH_EVAL_SHOW).join('');
-const rest = list.slice(DASH_EVAL_SHOW);
-if (rest.length){
-if (dash.evalMore) html += '<div class="more-list">' + rest.join('') + '</div>';
-html += moreBtn(dash.evalMore, rest.length, 'dashEvalToggle');
-}
-document.getElementById('dashEval').innerHTML = html;
-}
-function dashEvalToggle(){ dash.evalMore = !dash.evalMore; renderDashEval(); }
-// 수행평가 현황 항목 → 그 학교 · 그 과제의 점수 입력 화면
+// 학교 항목 → 그 학교의 점수 입력 화면 (아직 입력할 칸이 가장 많은 과제를 먼저 선택)
 function dashGoScore(i){
-const t = dash.evalTasks[i];
-if (!t) return;
-if (ev.school !== t.school){
-ev.school = t.school;
-try { localStorage.setItem('evSchool', t.school); } catch (e) {}
+const sc = (dash.evalSchools || [])[i];
+if (!sc) return;
+const task = sc.tasks.slice().sort(function(a, b){ return b.left - a.left; })[0];
+if (ev.school !== sc.school){
+ev.school = sc.school;
+try { localStorage.setItem('evSchool', sc.school); } catch (e) {}
 closeTaskEditor();
 if (ev.schools.length) applyEvalSchools();
 }
-state.scoreTask = t.id;
+if (task) state.scoreTask = task.id;
 state.modeView.eval = 'escore';
 goMode('eval');
 }
